@@ -94,9 +94,9 @@ export default function RegisterPage() {
         <div className="mb-8 text-center">
           <Link
             href="/"
-            className="text-2xl font-bold text-indigo-600"
+            className="text-2xl font-bold text-red-600"
           >
-            EduNepal
+            Dhanusha Coaching
           </Link>
 
           <h2 className="mt-2 text-sm text-gray-600">

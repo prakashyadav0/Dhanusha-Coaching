@@ -174,7 +174,7 @@ export default function UserDashboardPage() {
   const lockedCourses  = allCourses.filter(c => !purchasedIds.has(c._id));
 
   return (
-    <div>
+    <div className="pb-8">
       <h1 className="text-xl sm:text-2xl font-bold text-gray-800 mb-1">My Dashboard</h1>
       <p className="text-gray-500 text-sm mb-6">Manage your courses and learning progress.</p>
 
@@ -289,32 +289,31 @@ export default function UserDashboardPage() {
                 <>
                   <p className="text-sm font-semibold text-gray-700 mb-3">Choose payment method</p>
                   <div className="grid grid-cols-3 gap-2 mb-5">
-                    <PayMethodBtn
-                      id="khalti"
-                      label="Khalti"
-                      emoji="💜"
-                      selected={paymentMethod === 'khalti'}
-                      onClick={() => setPaymentMethod('khalti')}
-                    />
-                    <PayMethodBtn
-                      id="esewa"
-                      label="eSewa"
-                      emoji="💚"
-                      selected={paymentMethod === 'esewa'}
-                      onClick={() => setPaymentMethod('esewa')}
-                    />
-                    <PayMethodBtn
-                      id="bank"
-                      label="Bank QR"
-                      emoji="🏦"
-                      selected={paymentMethod === 'bank'}
-                      onClick={() => setPaymentMethod('bank')}
-                    />
+                         <PayMethodBtn
+                        label="Khalti"
+                        logo="/Khalti.svg"
+                        selected={paymentMethod === 'khalti'}
+                        onClick={() => setPaymentMethod('khalti')}
+                      />
+
+                      <PayMethodBtn
+                        label="eSewa"
+                        logo="/esewa.svg"
+                        selected={paymentMethod === 'esewa'}
+                        onClick={() => setPaymentMethod('esewa')}
+                      />
+
+                      <PayMethodBtn
+                        label="Bank QR"
+                        logo="/bank.svg"
+                        selected={paymentMethod === 'bank'}
+                        onClick={() => setPaymentMethod('bank')}
+                      />
                   </div>
 
                   {paymentMethod === 'bank' && (
-                    <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 mb-4 text-sm text-blue-700">
-                      Scan the QR on the next step. Access will be granted after manual verification within 24 hours.
+                    <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 mb-4  text-gray-700">
+                       Scan the QR on the next step. Access will be granted after manual verification within 24 hours.
                     </div>
                   )}
 
@@ -342,8 +341,8 @@ export default function UserDashboardPage() {
       {selectedCourse && showQRConfirm && (
         <Modal onClose={() => { setShowQRConfirm(false); setSelectedCourse(null); }}>
           <h2 className="text-lg font-bold text-gray-900 mb-1 text-center">Bank Transfer</h2>
-          <p className="text-sm text-gray-500 text-center mb-5">
-            Scan the QR or use the account details below, then click "I've Paid".
+          <p className="text-sm text-gray-800 text-center mb-5 text-bold">
+            Scan the QR or use the account details below And Kindly Write Your Email in Remarks  then click "I've Paid".
           </p>
 
           {/* QR image — place your bank QR at /public/bank-qr.png */}
@@ -377,6 +376,7 @@ export default function UserDashboardPage() {
 
           <p className="text-xs text-gray-400 text-center mb-4">
             After payment, click the button below. Our team will verify and grant access within 24 hours.
+            if Any Trouble Contact us at <a href="mob:+977-9817840154" className="text-indigo-600 hover:underline">+977-9817840154</a> or <a href="tel:+977-9844162947" className="text-indigo-600 hover:underline">+977-9844162947</a>
           </p>
 
           <div className="flex gap-3">
@@ -461,9 +461,9 @@ function CourseCard({
 
 function Modal({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4 py-6">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div className="flex justify-end px-5 pt-4">
+        <div className="sticky top-0 bg-white z-10 flex justify-end px-5 pt-4">
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
         </div>
         <div className="px-5 pb-6">{children}</div>
@@ -484,18 +484,32 @@ function InfoRow({ icon, label, value, highlight }: { icon: string; label: strin
   );
 }
 
-function PayMethodBtn({ id, label, emoji, selected, onClick }: { id: string; label: string; emoji: string; selected: boolean; onClick: () => void }) {
+function PayMethodBtn({
+  label,
+  logo,
+  selected,
+  onClick,
+}: {
+  label: string;
+  logo: string;
+  selected: boolean;
+  onClick: () => void;
+}) {
   return (
     <button
       onClick={onClick}
-      className={`flex flex-col items-center gap-1 px-2 py-3 rounded-xl border-2 text-xs font-medium transition ${
+      className={`flex flex-col items-center gap-2 px-2 py-3 rounded-xl border-2 text-xs font-medium transition ${
         selected
           ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
           : 'border-gray-200 text-gray-600 hover:border-gray-300'
       }`}
     >
-      <span className="text-xl">{emoji}</span>
-      {label}
+      <img
+        src={logo}
+        alt={label}
+        className="h-8 w-auto object-contain"
+      />
+      <span>{label}</span>
     </button>
   );
 }

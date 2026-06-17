@@ -20,7 +20,7 @@ function getPageTitle(pathname: string): string {
   if (pathname.includes('/videos'))  return 'Videos';
   if (pathname.includes('/notes'))   return 'Notes';
   if (pathname.includes('/notices')) return 'Notices';
-  return 'EduNepal';
+  return '';
 }
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {

@@ -5,7 +5,8 @@ import Course from '@/models/Course';
 import '@/models/User';
 
 import Hero from '@/components/shared/Hero';
-import Footer from '@/components/shared/Footer';
+
+import MapSection from '@/components/shared/MapSection';
 
 async function getCourses() {
   await dbConnect();
@@ -91,7 +92,8 @@ export default async function HomePage() {
         )}
       </section>
     </div>
-      <Footer />
+      <MapSection />
+      
     </>
   );
 }

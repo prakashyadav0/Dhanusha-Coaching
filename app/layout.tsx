@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import SessionWrapper from '@/components/shared/SessionWrapper';
 import Navbar from '@/components/shared/Navbar';
+import Footer from '@/components/shared/Footer';
 
 import './globals.css';
 
@@ -28,7 +29,7 @@ export default function RootLayout({
             {children}
           </main>
 
-         
+          <Footer />
         </SessionWrapper>
       </body>
     </html>

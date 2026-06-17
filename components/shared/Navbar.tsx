@@ -1,5 +1,7 @@
 'use client';
+
 import Link from 'next/link';
+import Image from 'next/image';
 import { useSession, signOut } from 'next-auth/react';
 import { useState } from 'react';
 
@@ -8,60 +10,147 @@ export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
 
   const dashboardHref =
-    session?.user.role === 'admin'   ? '/admin/dashboard'   :
-    session?.user.role === 'teacher' ? '/teacher/dashboard' :
-                                       '/user/dashboard';
+    session?.user.role === 'admin'
+      ? '/admin/dashboard'
+      : session?.user.role === 'teacher'
+      ? '/teacher/dashboard'
+      : '/user/dashboard';
 
   return (
-    <nav className="bg-white border-b border-gray-200 sticky top-0 z-20">
-      <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-        <Link href="/" className="text-xl font-bold text-red-600">Dhanusha Coaching</Link>
+    <nav className="bg-white border-b border-gray-200 sticky top-0 z-20 shadow-sm">
+      <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between relative">
+        
+        {/* Logo + Site Name */}
+        <Link
+          href="/"
+          className="flex items-center gap-3"
+        >
+          <Image
+            src="/logo.webp"
+            alt="Dhanusha Coaching"
+            width={45}
+            height={45}
+            className="rounded-lg"
+            priority
+          />
+          <span className="text-xl font-bold text-red-600">
+            Dhanusha Coaching
+          </span>
+        </Link>
 
-        {/* Desktop nav */}
-        <div className="hidden sm:flex items-center gap-4">
-          {session ? (
-            <>
-              <Link href={dashboardHref} className="text-sm text-gray-600 hover:text-indigo-600 transition">
-                Dashboard
-              </Link>
-              <button
-                onClick={() => signOut({ callbackUrl: '/' })}
-                className="text-sm bg-gray-100 hover:bg-red-500 px-4 py-2 rounded-lg transition"
-              >
-                Sign Out
-              </button>
-            </>
-          ) : (
-            <>
-              <Link href="/login" className="text-sm text-gray-600 hover:text-indigo-600">Login</Link>
-              <Link href="/register" className="text-sm bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition">
-                Register
-              </Link>
-            </>
-          )}
-        </div>
+        {/* Desktop Navigation */}
+        {/* Desktop Navigation */}
+<div className="hidden sm:flex items-center gap-8 absolute left-1/2 -translate-x-1/2">
+  <Link
+    href="/about"
+    className="text-sm font-medium text-gray-600 hover:text-indigo-600 transition"
+  >
+    About Us
+  </Link>
 
-        {/* Mobile hamburger */}
+  <Link
+    href="/contact"
+    className="text-sm font-medium text-gray-600 hover:text-indigo-600 transition"
+  >
+    Contact Us
+  </Link>
+</div>
+
+{/* Right Side Auth Buttons */}
+<div className="hidden sm:flex items-center gap-4">
+  {session ? (
+    <>
+      <Link
+        href={dashboardHref}
+        className="text-sm text-gray-600 hover:text-indigo-600 transition"
+      >
+        Dashboard
+      </Link>
+
+      <button
+        onClick={() => signOut({ callbackUrl: '/' })}
+        className="text-sm bg-gray-100 hover:bg-red-500 hover:text-white px-4 py-2 rounded-lg transition"
+      >
+        Sign Out
+      </button>
+    </>
+  ) : (
+    <>
+      <Link
+        href="/login"
+        className="text-sm text-gray-600 hover:text-indigo-600"
+      >
+        Login
+      </Link>
+
+      <Link
+        href="/register"
+        className="text-sm bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition"
+      >
+        Register
+      </Link>
+    </>
+  )}
+</div>
+
+        {/* Mobile Hamburger */}
         <button
           className="sm:hidden p-2 rounded-lg text-gray-600 hover:bg-gray-100 transition"
-          onClick={() => setMenuOpen(o => !o)}
+          onClick={() => setMenuOpen(!menuOpen)}
           aria-label="Toggle menu"
         >
           {menuOpen ? (
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M6 18L18 6M6 6l12 12"
+              />
             </svg>
           ) : (
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M4 6h16M4 12h16M4 18h16"
+              />
             </svg>
           )}
         </button>
       </div>
 
-      {/* Mobile dropdown */}
+      {/* Mobile Menu */}
       {menuOpen && (
         <div className="sm:hidden border-t border-gray-100 px-4 py-3 space-y-2 bg-white">
+          
+          <Link
+            href="/about"
+            onClick={() => setMenuOpen(false)}
+            className="block text-sm text-gray-700 py-2"
+          >
+            About Us
+          </Link>
+
+          <Link
+            href="/contact"
+            onClick={() => setMenuOpen(false)}
+            className="block text-sm text-gray-700 py-2"
+          >
+            Contact Us
+          </Link>
+
           {session ? (
             <>
               <Link
@@ -71,18 +160,24 @@ export default function Navbar() {
               >
                 Dashboard
               </Link>
+
               <button
                 onClick={() => signOut({ callbackUrl: '/' })}
-                className="block w-full text-left text-sm text-red-600  py-2"
+                className="block w-full text-left text-sm text-red-600 py-2"
               >
                 Sign Out
               </button>
             </>
           ) : (
             <>
-              <Link href="/login" onClick={() => setMenuOpen(false)} className="block text-sm text-gray-700 py-2">
+              <Link
+                href="/login"
+                onClick={() => setMenuOpen(false)}
+                className="block text-sm text-gray-700 py-2"
+              >
                 Login
               </Link>
+
               <Link
                 href="/register"
                 onClick={() => setMenuOpen(false)}

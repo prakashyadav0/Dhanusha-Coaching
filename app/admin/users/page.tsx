@@ -8,29 +8,101 @@ interface User {
   role: string;
   isActive: boolean;
   createdAt: string;
+  purchasedCourses: string[]; // array of course IDs
+}
+
+interface Course {
+  _id: string;
+  title: string;
+  price: number;
 }
 
 const roleBadge: Record<string, string> = {
-  admin: 'bg-red-100 text-red-700',
+  admin:   'bg-red-100 text-red-700',
   teacher: 'bg-amber-100 text-amber-700',
-  user: 'bg-indigo-100 text-indigo-700',
+  user:    'bg-indigo-100 text-indigo-700',
 };
 
+// ── CSV download ──────────────────────────────────────────────────────────────
+function downloadCSV(users: User[], filename: string) {
+  const headers = ['Name', 'Email', 'Role', 'Status', 'Joined'];
+  const rows = users.map(u => [
+    `"${u.name.replace(/"/g, '""')}"`,
+    `"${u.email}"`,
+    u.role,
+    u.isActive ? 'Active' : 'Inactive',
+    new Date(u.createdAt).toLocaleDateString(),
+  ]);
+  const csv  = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ── PDF download ──────────────────────────────────────────────────────────────
+function downloadPDF(users: User[], title: string) {
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"/><title>${title}</title>
+  <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;font-size:12px;color:#111;padding:32px}
+  h1{font-size:18px;margin-bottom:4px}p{color:#666;margin-bottom:20px;font-size:11px}
+  table{width:100%;border-collapse:collapse}th{background:#4F46E5;color:#fff;text-align:left;padding:8px 10px;font-size:11px;text-transform:uppercase;letter-spacing:.05em}
+  td{padding:7px 10px;border-bottom:1px solid #e5e7eb;font-size:12px}tr:nth-child(even) td{background:#f9fafb}
+  .badge{display:inline-block;padding:2px 8px;border-radius:99px;font-size:10px;font-weight:600}
+  .active{background:#dcfce7;color:#15803d}.inactive{background:#fee2e2;color:#b91c1c}
+  .admin{background:#fee2e2;color:#b91c1c}.teacher{background:#fef3c7;color:#92400e}.user{background:#e0e7ff;color:#3730a3}
+  footer{margin-top:24px;font-size:10px;color:#9ca3af;text-align:center}</style></head>
+  <body><h1>EduNepal — ${title}</h1>
+  <p>Generated ${new Date().toLocaleString()} &nbsp;·&nbsp; ${users.length} user${users.length !== 1 ? 's' : ''}</p>
+  <table><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Joined</th></tr></thead>
+  <tbody>${users.map(u => `<tr><td>${u.name}</td><td>${u.email}</td>
+  <td><span class="badge ${u.role}">${u.role}</span></td>
+  <td><span class="badge ${u.isActive ? 'active' : 'inactive'}">${u.isActive ? 'Active' : 'Inactive'}</span></td>
+  <td>${new Date(u.createdAt).toLocaleDateString()}</td></tr>`).join('')}</tbody></table>
+  <footer>EduNepal User Report &nbsp;·&nbsp; Confidential</footer>
+  <script>window.onload=()=>{window.print();window.onafterprint=()=>window.close()}</script>
+  </body></html>`;
+  const win = window.open('', '_blank', 'width=900,height=700');
+  if (!win) { alert('Allow pop-ups to download PDF.'); return; }
+  win.document.write(html); win.document.close();
+}
+
+// ── Page ──────────────────────────────────────────────────────────────────────
 export default function AdminUsersPage() {
-  const [users, setUsers] = useState<User[]>([]);
+  const [users,   setUsers]   = useState<User[]>([]);
+  const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('all');
-  const [msg, setMsg] = useState('');
+  const [filter,  setFilter]  = useState('all');
+  const [search,  setSearch]  = useState('');
+  const [msg,     setMsg]     = useState<{ text: string; ok: boolean } | null>(null);
+
+  // Enroll modal state
+  const [enrollUser,   setEnrollUser]   = useState<User | null>(null);
+  const [enrollCourse, setEnrollCourse] = useState('');
+  const [enrollNote,   setEnrollNote]   = useState('');
+  const [enrollSaving, setEnrollSaving] = useState(false);
 
   async function fetchUsers() {
-    const q = filter === 'all' ? '' : `?role=${filter}`;
+    setLoading(true);
+    const q   = filter === 'all' ? '' : `?role=${filter}`;
     const res = await fetch(`/api/users${q}`);
-    const data = await res.json();
-    setUsers(data.users);
+    const d   = await res.json();
+    setUsers(d.users ?? []);
     setLoading(false);
   }
 
   useEffect(() => { fetchUsers(); }, [filter]);
+
+  useEffect(() => {
+    fetch('/api/courses?all=true')
+      .then(r => r.json())
+      .then(d => setCourses(d.courses ?? []));
+  }, []);
+
+  function flash(text: string, ok: boolean) {
+    setMsg({ text, ok });
+    setTimeout(() => setMsg(null), 4000);
+  }
 
   async function updateUser(userId: string, patch: { role?: string; isActive?: boolean }) {
     const res = await fetch('/api/users', {
@@ -38,76 +110,286 @@ export default function AdminUsersPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId, ...patch }),
     });
-    if (res.ok) { setMsg('User updated!'); fetchUsers(); }
+    if (res.ok) { flash('User updated!', true); fetchUsers(); }
+    else { const d = await res.json(); flash(d.message, false); }
+  }
+
+  async function handleEnroll(e: React.FormEvent) {
+    e.preventDefault();
+    if (!enrollUser || !enrollCourse) return;
+    setEnrollSaving(true);
+    const res = await fetch('/api/admin/enroll-user', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: enrollUser._id, courseId: enrollCourse, note: enrollNote }),
+    });
+    const d = await res.json();
+    setEnrollSaving(false);
+    if (res.ok) {
+      flash(d.message, true);
+      setEnrollUser(null);
+      setEnrollCourse('');
+      setEnrollNote('');
+      fetchUsers(); // refresh so purchasedCourses is up to date
+    } else {
+      flash(d.message, false);
+    }
+  }
+
+  const visible = users.filter(u => {
+    if (!search.trim()) return true;
+    const q = search.toLowerCase();
+    return u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q);
+  });
+
+  const filterLabel =
+    filter === 'all' ? 'All Users' :
+    filter === 'user' ? 'Students' :
+    filter === 'teacher' ? 'Teachers' : 'Admins';
+
+  const inputCls = 'w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white';
+
+  // Check if a user is already enrolled in a specific course
+  function isEnrolled(user: User, courseId: string): boolean {
+    return (user.purchasedCourses ?? []).map(String).includes(courseId);
   }
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-800 mb-6">Users</h1>
-      {msg && <div className="mb-4 bg-green-50 border border-green-200 text-green-700 text-sm px-4 py-3 rounded-lg">{msg}</div>}
-
-      {/* Filter */}
-      <div className="flex gap-2 mb-6">
-        {['all', 'user', 'teacher', 'admin'].map((r) => (
-          <button key={r} onClick={() => setFilter(r)} className={`px-4 py-1.5 rounded-full text-sm font-medium transition capitalize ${filter === r ? 'bg-indigo-600 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:border-indigo-300'}`}>
-            {r}
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5 sm:mb-6">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-800">Users</h1>
+        <div className="flex gap-2 shrink-0">
+          <button onClick={() => downloadCSV(visible, `EduNepal_${filterLabel.replace(' ','_')}_${new Date().toISOString().slice(0,10)}.csv`)} disabled={visible.length === 0} className="flex items-center gap-1.5 text-sm px-3 py-2 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition">
+            <span>📊</span><span className="hidden sm:inline">Download</span> CSV
           </button>
-        ))}
+          <button onClick={() => downloadPDF(visible, `${filterLabel} Report`)} disabled={visible.length === 0} className="flex items-center gap-1.5 text-sm px-3 py-2 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition">
+            <span>📄</span><span className="hidden sm:inline">Download</span> PDF
+          </button>
+        </div>
       </div>
 
+      {/* Flash */}
+      {msg && (
+        <div className={`mb-4 text-sm px-4 py-3 rounded-xl border ${msg.ok ? 'bg-green-50 border-green-200 text-green-700' : 'bg-red-50 border-red-200 text-red-700'}`}>
+          {msg.text}
+        </div>
+      )}
+
+      {/* Filter + Search */}
+      <div className="flex flex-col sm:flex-row gap-3 mb-4 sm:mb-5">
+        <div className="flex flex-wrap gap-2">
+          {[
+            { key: 'all',     label: 'All'     },
+            { key: 'user',    label: 'Students' },
+            { key: 'teacher', label: 'Teachers' },
+            { key: 'admin',   label: 'Admins'   },
+          ].map(r => (
+            <button key={r.key} onClick={() => setFilter(r.key)} className={`px-3 sm:px-4 py-1.5 rounded-full text-sm font-medium transition ${filter === r.key ? 'bg-indigo-600 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:border-indigo-300'}`}>
+              {r.label}
+            </button>
+          ))}
+        </div>
+        <div className="relative sm:ml-auto">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">🔍</span>
+          <input type="text" placeholder="Search name or email…" value={search} onChange={e => setSearch(e.target.value)} className="w-full sm:w-56 pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white" />
+        </div>
+      </div>
+
+      {!loading && (
+        <p className="text-xs text-gray-400 mb-3">
+          Showing <span className="font-semibold text-gray-600">{visible.length}</span> of{' '}
+          <span className="font-semibold text-gray-600">{users.length}</span> users
+        </p>
+      )}
+
+      {/* Content */}
       {loading ? (
-        <p className="text-gray-400 text-sm">Loading...</p>
+        <div className="space-y-3">{[1,2,3,4,5].map(i => <div key={i} className="h-16 bg-gray-100 rounded-xl animate-pulse" />)}</div>
+      ) : visible.length === 0 ? (
+        <div className="text-center py-16 text-gray-400"><p className="text-4xl mb-2">👥</p><p className="text-sm">{search ? 'No users match your search.' : 'No users found.'}</p></div>
       ) : (
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide">
-              <tr>
-                <th className="px-5 py-3 text-left">Name</th>
-                <th className="px-5 py-3 text-left">Email</th>
-                <th className="px-5 py-3 text-left">Role</th>
-                <th className="px-5 py-3 text-left">Status</th>
-                <th className="px-5 py-3 text-left">Joined</th>
-                <th className="px-5 py-3 text-left">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {users.map((u) => (
-                <tr key={u._id} className="hover:bg-gray-50">
-                  <td className="px-5 py-3 font-medium text-gray-900">{u.name}</td>
-                  <td className="px-5 py-3 text-gray-500">{u.email}</td>
-                  <td className="px-5 py-3">
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${roleBadge[u.role]}`}>{u.role}</span>
-                  </td>
-                  <td className="px-5 py-3">
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${u.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                      {u.isActive ? 'Active' : 'Inactive'}
-                    </span>
-                  </td>
-                  <td className="px-5 py-3 text-gray-400">{new Date(u.createdAt).toLocaleDateString()}</td>
-                  <td className="px-5 py-3">
-                    <div className="flex gap-2">
-                      <select
-                        value={u.role}
-                        onChange={e => updateUser(u._id, { role: e.target.value })}
-                        className="text-xs border border-gray-200 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-indigo-400"
-                      >
-                        <option value="user">User</option>
-                        <option value="teacher">Teacher</option>
-                        <option value="admin">Admin</option>
-                      </select>
-                      <button
-                        onClick={() => updateUser(u._id, { isActive: !u.isActive })}
-                        className={`text-xs px-2 py-1 rounded border transition ${u.isActive ? 'border-red-200 text-red-600 hover:bg-red-50' : 'border-green-200 text-green-600 hover:bg-green-50'}`}
-                      >
-                        {u.isActive ? 'Deactivate' : 'Activate'}
-                      </button>
-                    </div>
-                  </td>
+        <>
+          {/* Mobile cards */}
+          <div className="sm:hidden space-y-3">
+            {visible.map(u => (
+              <div key={u._id} className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-gray-900 text-sm">{u.name}</p>
+                    <p className="text-xs text-gray-400 mt-0.5 break-all">{u.email}</p>
+                    <p className="text-xs text-gray-300 mt-0.5">Joined {new Date(u.createdAt).toLocaleDateString()}</p>
+                  </div>
+                  <div className="flex flex-col gap-1 items-end shrink-0 ml-2">
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full capitalize ${roleBadge[u.role]}`}>{u.role}</span>
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${u.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{u.isActive ? 'Active' : 'Inactive'}</span>
+                  </div>
+                </div>
+                <div className="flex gap-2 flex-wrap">
+                  <select value={u.role} onChange={e => updateUser(u._id, { role: e.target.value })} className="flex-1 text-xs border border-gray-200 rounded-lg px-2 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-400 bg-white">
+                    <option value="user">Student</option>
+                    <option value="teacher">Teacher</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                  <button onClick={() => updateUser(u._id, { isActive: !u.isActive })} className={`text-xs px-3 py-2 rounded-lg border transition ${u.isActive ? 'border-red-200 text-red-600 hover:bg-red-50' : 'border-green-200 text-green-600 hover:bg-green-50'}`}>
+                    {u.isActive ? 'Deactivate' : 'Activate'}
+                  </button>
+                  <button onClick={() => { setEnrollUser(u); setEnrollCourse(''); setEnrollNote(''); }} className="text-xs px-3 py-2 rounded-lg border border-indigo-200 text-indigo-600 hover:bg-indigo-50 transition font-medium">
+                    🎓 Enroll
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop table */}
+          <div className="hidden sm:block bg-white rounded-xl border border-gray-100 shadow-sm overflow-x-auto">
+            <table className="w-full text-sm min-w-[780px]">
+              <thead className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide">
+                <tr>
+                  <th className="px-5 py-3 text-left">Name</th>
+                  <th className="px-5 py-3 text-left">Email</th>
+                  <th className="px-5 py-3 text-left">Role</th>
+                  <th className="px-5 py-3 text-left">Status</th>
+                  <th className="px-5 py-3 text-left">Joined</th>
+                  <th className="px-5 py-3 text-left">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-          {users.length === 0 && <p className="text-center text-gray-400 text-sm py-10">No users found.</p>}
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {visible.map(u => (
+                  <tr key={u._id} className="hover:bg-gray-50">
+                    <td className="px-5 py-3 font-medium text-gray-900">{u.name}</td>
+                    <td className="px-5 py-3 text-gray-500">{u.email}</td>
+                    <td className="px-5 py-3"><span className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${roleBadge[u.role]}`}>{u.role}</span></td>
+                    <td className="px-5 py-3"><span className={`px-2 py-0.5 rounded-full text-xs font-medium ${u.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{u.isActive ? 'Active' : 'Inactive'}</span></td>
+                    <td className="px-5 py-3 text-gray-400">{new Date(u.createdAt).toLocaleDateString()}</td>
+                    <td className="px-5 py-3">
+                      <div className="flex gap-2">
+                        <select value={u.role} onChange={e => updateUser(u._id, { role: e.target.value })} className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-400">
+                          <option value="user">Student</option>
+                          <option value="teacher">Teacher</option>
+                          <option value="admin">Admin</option>
+                        </select>
+                        <button onClick={() => updateUser(u._id, { isActive: !u.isActive })} className={`text-xs px-3 py-1.5 rounded-lg border transition ${u.isActive ? 'border-red-200 text-red-600 hover:bg-red-50' : 'border-green-200 text-green-600 hover:bg-green-50'}`}>
+                          {u.isActive ? 'Deactivate' : 'Activate'}
+                        </button>
+                        <button onClick={() => { setEnrollUser(u); setEnrollCourse(''); setEnrollNote(''); }} className="text-xs px-3 py-1.5 rounded-lg border border-indigo-200 text-indigo-600 hover:bg-indigo-50 transition font-medium">
+                          🎓 Enroll
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+
+      {/* ── Enroll Modal ──────────────────────────────────────────────────── */}
+      {enrollUser && (
+        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 px-0 sm:px-4">
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-xl w-full sm:max-w-md max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-gray-100">
+              <div>
+                <h2 className="text-base font-bold text-gray-900">Enroll in Course</h2>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Granting free access to{' '}
+                  <span className="font-semibold text-indigo-600">{enrollUser.name}</span>
+                </p>
+              </div>
+              <button onClick={() => setEnrollUser(null)} className="w-9 h-9 flex items-center justify-center rounded-xl text-gray-400 hover:bg-gray-100 transition text-xl">×</button>
+            </div>
+
+            <form onSubmit={handleEnroll} className="p-5 space-y-4">
+              {/* User info banner */}
+              <div className="bg-indigo-50 border border-indigo-100 rounded-xl px-4 py-3 flex items-center gap-3">
+                <div className="w-9 h-9 rounded-full bg-indigo-200 text-indigo-700 flex items-center justify-center font-bold text-sm shrink-0">
+                  {enrollUser.name[0].toUpperCase()}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-gray-900 truncate">{enrollUser.name}</p>
+                  <p className="text-xs text-gray-500 truncate">{enrollUser.email}</p>
+                </div>
+              </div>
+
+              {/* Course list with enrolled status */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Select Course</label>
+                <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
+                  {courses.length === 0 ? (
+                    <p className="text-sm text-gray-400 text-center py-4">No courses available.</p>
+                  ) : courses.map(c => {
+                    const enrolled = isEnrolled(enrollUser, c._id);
+                    const selected = enrollCourse === c._id;
+                    return (
+                      <button
+                        key={c._id}
+                        type="button"
+                        disabled={enrolled}
+                        onClick={() => !enrolled && setEnrollCourse(c._id)}
+                        className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border-2 text-sm transition text-left
+                          ${enrolled
+                            ? 'border-green-200 bg-green-50 cursor-not-allowed'
+                            : selected
+                            ? 'border-indigo-500 bg-indigo-50'
+                            : 'border-gray-200 hover:border-indigo-300 bg-white'
+                          }`}
+                      >
+                        <div className="min-w-0">
+                          <p className={`font-medium truncate ${enrolled ? 'text-green-700' : selected ? 'text-indigo-700' : 'text-gray-800'}`}>
+                            {c.title}
+                          </p>
+                          <p className="text-xs text-gray-400 mt-0.5">
+                            {c.price === 0 ? 'Free' : `Rs. ${c.price}`}
+                          </p>
+                        </div>
+                        {enrolled ? (
+                          <span className="shrink-0 ml-3 flex items-center gap-1 text-xs font-semibold text-green-700 bg-green-100 px-2.5 py-1 rounded-full">
+                            ✓ Enrolled
+                          </span>
+                        ) : selected ? (
+                          <span className="shrink-0 ml-3 w-5 h-5 rounded-full border-2 border-indigo-500 bg-indigo-500 flex items-center justify-center">
+                            <span className="text-white text-xs">✓</span>
+                          </span>
+                        ) : (
+                          <span className="shrink-0 ml-3 w-5 h-5 rounded-full border-2 border-gray-300" />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Grant note */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Reason <span className="text-gray-400 font-normal">(optional)</span>
+                </label>
+                <input
+                  type="text"
+                  value={enrollNote}
+                  onChange={e => setEnrollNote(e.target.value)}
+                  className={inputCls}
+                  placeholder="e.g. Scholarship, Offline cash, Staff access…"
+                />
+              </div>
+
+              {/* Info note */}
+              <div className="bg-amber-50 border border-amber-100 rounded-xl px-4 py-3 text-xs text-amber-700">
+                💡 This grants <strong>{enrollUser.name}</strong> immediate access at <strong>no charge</strong>. An audit record will be saved.
+              </div>
+
+              <div className="flex gap-3 pt-1">
+                <button type="button" onClick={() => setEnrollUser(null)} className="flex-1 px-4 py-3 text-sm text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200 transition">
+                  Cancel
+                </button>
+                <button type="submit" disabled={enrollSaving || !enrollCourse} className="flex-1 px-4 py-3 text-sm text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 disabled:opacity-60 transition font-semibold">
+                  {enrollSaving ? 'Enrolling…' : '🎓 Grant Access'}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>

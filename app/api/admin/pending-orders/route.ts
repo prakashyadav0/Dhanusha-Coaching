@@ -13,7 +13,14 @@ export async function GET(req: NextRequest) {
     await dbConnect();
 
     const { searchParams } = new URL(req.url);
-    const status = searchParams.get('status') || 'pending';
+    const statusParam = searchParams.get('status');
+    const status =
+      statusParam === 'pending' ||
+      statusParam === 'paid' ||
+      statusParam === 'failed' ||
+      statusParam === 'refunded'
+        ? statusParam
+        : 'pending';
 
     const orders = await Order.find({
       paymentMethod: 'bank',
