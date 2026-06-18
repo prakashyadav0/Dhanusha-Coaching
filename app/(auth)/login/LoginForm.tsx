@@ -1,4 +1,5 @@
 'use client';
+
 import { useState } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -7,86 +8,119 @@ import Link from 'next/link';
 export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
 
   const callbackUrl = searchParams.get('callbackUrl') || '';
 
-  async function handleSubmit(e: React.FormEvent) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+
+    if (loading) return;
+
     setLoading(true);
     setError('');
 
-    const result = await signIn('credentials', {
-      email,
-      password,
-      redirect: false,
-    });
+    try {
+      const result = await signIn('credentials', {
+        email: email.trim().toLowerCase(),
+        password,
+        redirect: false,
+      });
 
-    setLoading(false);
+      if (result?.error) {
+        setError(result.error);
+        return;
+      }
 
-    if (result?.error) {
-      setError(result.error);
-      return;
-    }
+      const sessionRes = await fetch('/api/auth/session', {
+        cache: 'no-store',
+      });
 
-    // Redirect based on role by fetching session
-    const res = await fetch('/api/auth/session');
-    const session = await res.json();
-    const role = session?.user?.role;
+      const session = await sessionRes.json();
+      const role = session?.user?.role;
 
-    if (callbackUrl) {
-      router.push(callbackUrl);
-    } else if (role === 'admin') {
-      router.push('/admin/dashboard');
-    } else if (role === 'teacher') {
-      router.push('/teacher/dashboard');
-    } else {
-      router.push('/user/dashboard');
+      // priority: callback first
+      if (callbackUrl) {
+        router.replace(callbackUrl);
+        return;
+      }
+
+      // role-based routing
+      switch (role) {
+        case 'admin':
+          router.replace('/admin/dashboard');
+          break;
+
+        case 'team member':
+          router.replace('/team/dashboard');
+          break;
+
+        default:
+          router.replace('/user/dashboard');
+          break;
+      }
+
+      router.refresh();
+    } catch {
+      setError('Something went wrong. Please try again.');
+    } finally {
+      setLoading(false);
     }
   }
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 w-full max-w-md p-8">
+      <div className="w-full max-w-md rounded-2xl border border-gray-100 bg-white p-8 shadow-sm">
         <div className="text-center mb-8">
           <Link href="/" className="text-2xl font-bold text-red-600">
             Dhanusha Coaching
           </Link>
-          <h2 className="text-gray-700 mt-2 text-sm">Sign in to your account</h2>
+          <p className="text-gray-600 mt-2 text-sm">
+            Sign in to your account
+          </p>
         </div>
 
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-lg mb-5">
+          <div className="mb-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {error}
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Email
+            </label>
             <input
               type="email"
               required
+              autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               placeholder="you@example.com"
             />
           </div>
+
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Password
+            </label>
             <input
               type="password"
               required
+              autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               placeholder="••••••••"
             />
           </div>
+
           <button
             type="submit"
             disabled={loading}

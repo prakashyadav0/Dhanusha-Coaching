@@ -4,7 +4,8 @@ export interface IUser extends Document {
   name: string;
   email: string;
   password: string;
-  role: 'admin' | 'teacher' | 'user';
+  number: string;
+  role: 'admin' | 'team member' | 'user';
   purchasedCourses: mongoose.Types.ObjectId[];
   avatar?: string;
   isActive: boolean;
@@ -26,6 +27,11 @@ const UserSchema = new Schema<IUser>(
       lowercase: true,
       trim: true,
     },
+    number: {
+      type: String,
+      required: [true, 'Phone number is required'],
+      trim: true,
+    },
     password: {
       type: String,
       required: [true, 'Password is required'],
@@ -34,7 +40,7 @@ const UserSchema = new Schema<IUser>(
     },
     role: {
       type: String,
-      enum: ['admin', 'teacher', 'user'],
+      enum: ['admin', 'team member', 'user'],
       default: 'user',
     },
     purchasedCourses: [

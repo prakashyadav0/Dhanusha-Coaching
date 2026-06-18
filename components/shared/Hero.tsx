@@ -71,7 +71,7 @@ export default function Hero() {
           {/* Badge */}
           <div className="inline-block bg-red-500/20 backdrop-blur-sm border border-red-400/30 rounded-full px-4 py-1.5 mb-6">
             <span className="text-sm font-medium text-red-200">
-              🎓 Est. 2015 • Trusted by 5000+ Students
+              🎓 Trusted by 100000+ Students
             </span>
           </div>
 

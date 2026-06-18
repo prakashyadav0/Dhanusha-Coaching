@@ -10,82 +10,95 @@ export default function RegisterPage() {
   const [form, setForm] = useState({
     name: '',
     email: '',
+    number: '',
     password: '',
   });
 
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+  function handleChange(
+    e: React.ChangeEvent<HTMLInputElement>
+  ) {
     setForm((prev) => ({
       ...prev,
-      [e.target.name]: e.target.value,
+      [e.target.name]:
+        e.target.value,
     }));
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-  e.preventDefault();
+  async function handleSubmit(
+    e: React.FormEvent
+  ) {
+    e.preventDefault();
 
-  try {
-    setLoading(true);
-    setError('');
+    try {
+      setLoading(true);
+      setError('');
 
-    const res = await fetch(
-      '/api/auth/register',
-      {
-        method: 'POST',
+      const res =
+        await fetch(
+          '/api/auth/register',
+          {
+            method:
+              'POST',
 
-        headers: {
-          'Content-Type':
-            'application/json',
-        },
+            headers: {
+              'Content-Type':
+                'application/json',
+            },
 
-        body: JSON.stringify({
-          name: form.name,
-          email: form.email,
-          password: form.password,
-        }),
+            body:
+              JSON.stringify({
+                name:
+                  form.name,
+
+                email:
+                  form.email,
+
+                number:
+                  form.number,
+
+                password:
+                  form.password,
+              }),
+          }
+        );
+
+      const data =
+        await res.json();
+
+      if (!res.ok) {
+        setError(
+          data.message ||
+            'Registration failed'
+        );
+
+        return;
       }
-    );
 
-    const data =
-      await res.json();
-
-    if (!res.ok) {
-      setError(
-        data.message ||
-          'Registration failed'
+      sessionStorage.setItem(
+        'register_token',
+        data.token
       );
 
-      return;
+      sessionStorage.setItem(
+        'register_email',
+        form.email
+      );
+
+      router.push(
+        '/register/verify'
+      );
+
+    } catch {
+      setError(
+        'Something went wrong'
+      );
+    } finally {
+      setLoading(false);
     }
-
-    sessionStorage.setItem(
-      'register_token',
-      data.token
-    );
-
-    sessionStorage.setItem(
-      'register_email',
-      form.email
-    );
-
-    router.push(
-      '/register/verify'
-    );
-
-  } catch {
-
-    setError(
-      'Something went wrong'
-    );
-
-  } finally {
-
-    setLoading(false);
-
   }
-}
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
@@ -111,9 +124,12 @@ export default function RegisterPage() {
         )}
 
         <form
-          onSubmit={handleSubmit}
+          onSubmit={
+            handleSubmit
+          }
           className="space-y-4"
         >
+
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">
               Full Name
@@ -122,9 +138,13 @@ export default function RegisterPage() {
             <input
               name="name"
               required
-              value={form.name}
-              onChange={handleChange}
-              placeholder="Ram Sharma"
+              value={
+                form.name
+              }
+              onChange={
+                handleChange
+              }
+              placeholder="Enter Your Full Name"
               className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </div>
@@ -138,9 +158,34 @@ export default function RegisterPage() {
               name="email"
               type="email"
               required
-              value={form.email}
-              onChange={handleChange}
+              value={
+                form.email
+              }
+              onChange={
+                handleChange
+              }
               placeholder="you@example.com"
+              className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              Mobile Number
+            </label>
+
+            <input
+              name="number"
+              type="tel"
+              required
+              maxLength={10}
+              value={
+                form.number
+              }
+              onChange={
+                handleChange
+              }
+              placeholder="98XXXXXXXX"
               className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </div>
@@ -155,8 +200,12 @@ export default function RegisterPage() {
               type="password"
               required
               minLength={6}
-              value={form.password}
-              onChange={handleChange}
+              value={
+                form.password
+              }
+              onChange={
+                handleChange
+              }
               placeholder="Minimum 6 characters"
               className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
@@ -164,10 +213,14 @@ export default function RegisterPage() {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={
+              loading
+            }
             className="w-full rounded-lg bg-indigo-600 py-2.5 font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-60"
           >
-            {loading ? 'Creating account...' : 'Create Account'}
+            {loading
+              ? 'Creating account...'
+              : 'Create Account'}
           </button>
         </form>
 
@@ -180,6 +233,7 @@ export default function RegisterPage() {
             Login
           </Link>
         </p>
+
       </div>
     </div>
   );

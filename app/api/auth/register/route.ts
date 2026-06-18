@@ -4,7 +4,6 @@ import jwt from 'jsonwebtoken';
 
 import dbConnect from '@/lib/Db';
 import User from '@/models/User';
-
 import { sendOTPEmail } from '@/lib/mail';
 
 export async function POST(req: NextRequest) {
@@ -13,26 +12,32 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
 
-    const name =
-      body.name?.trim();
+    const name = body.name?.trim();
 
-    const email =
-      body.email
-        ?.trim()
-        .toLowerCase();
+    const email = body.email
+      ?.trim()
+      .toLowerCase();
 
-    const password =
-      body.password;
+    const number = body.number?.trim();
+
+    const password = body.password;
+
+    // optional role
+    const role =
+      body.role === 'team member'
+        ? 'team member'
+        : 'user';
 
     if (
       !name ||
       !email ||
+      !number ||
       !password
     ) {
       return NextResponse.json(
         {
           message:
-            'Name, email and password are required',
+            'Name, email, mobile number and password are required',
         },
         {
           status: 400,
@@ -40,9 +45,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (
-      password.length < 6
-    ) {
+    if (password.length < 6) {
       return NextResponse.json(
         {
           message:
@@ -54,16 +57,34 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Nepal phone validation (adjust if needed)
+    if (!/^[0-9]{10}$/.test(number)) {
+      return NextResponse.json(
+        {
+          message:
+            'Enter a valid mobile number',
+        },
+        {
+          status: 400,
+        }
+      );
+    }
+
     const existing =
       await User.findOne({
-        email,
+        $or: [
+          { email },
+          { number },
+        ],
       });
 
     if (existing) {
       return NextResponse.json(
         {
           message:
-            'Email already exists',
+            existing.email === email
+              ? 'Email already exists'
+              : 'Mobile number already exists',
         },
         {
           status: 409,
@@ -94,12 +115,11 @@ export async function POST(req: NextRequest) {
         {
           name,
           email,
-
+          number,
           password:
             hashed,
 
-          role:
-            'user',
+          role,
 
           isActive:
             true,
@@ -118,16 +138,12 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-
       message:
         'OTP sent',
-
       token:
         registerToken,
     });
-
   } catch (error) {
-
     console.log(error);
 
     return NextResponse.json(
@@ -135,7 +151,6 @@ export async function POST(req: NextRequest) {
         message:
           'Internal server error',
       },
-
       {
         status:
           500,

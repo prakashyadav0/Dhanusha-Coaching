@@ -41,6 +41,18 @@ export default function Navbar() {
         {/* Desktop Navigation */}
         {/* Desktop Navigation */}
 <div className="hidden sm:flex items-center gap-8 absolute left-1/2 -translate-x-1/2">
+<Link
+    href="/"
+    className="text-sm font-medium text-gray-600 hover:text-indigo-600 transition"
+  >
+    Home
+  </Link>
+  <Link
+    href="/user/dashboard"
+    className="text-sm font-medium text-gray-600 hover:text-indigo-600 transition"
+  >
+    Courses
+  </Link>
   <Link
     href="/about"
     className="text-sm font-medium text-gray-600 hover:text-indigo-600 transition"

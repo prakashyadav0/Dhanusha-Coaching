@@ -5,10 +5,11 @@ interface User {
   _id: string;
   name: string;
   email: string;
-  role: string;
+  number: string;                   // ✅ added
+  role: 'admin' | 'team member' | 'user';
   isActive: boolean;
   createdAt: string;
-  purchasedCourses: string[]; // array of course IDs
+  purchasedCourses: string[];
 }
 
 interface Course {
@@ -18,17 +19,18 @@ interface Course {
 }
 
 const roleBadge: Record<string, string> = {
-  admin:   'bg-red-100 text-red-700',
-  teacher: 'bg-amber-100 text-amber-700',
-  user:    'bg-indigo-100 text-indigo-700',
+  admin:        'bg-red-100 text-red-700',
+  'team member':'bg-amber-100 text-amber-700',
+  user:         'bg-indigo-100 text-indigo-700',
 };
 
 // ── CSV download ──────────────────────────────────────────────────────────────
 function downloadCSV(users: User[], filename: string) {
-  const headers = ['Name', 'Email', 'Role', 'Status', 'Joined'];
+  const headers = ['Name', 'Email', 'Mobile', 'Role', 'Status', 'Joined'];
   const rows = users.map(u => [
     `"${u.name.replace(/"/g, '""')}"`,
     `"${u.email}"`,
+    `"${u.number}"`,
     u.role,
     u.isActive ? 'Active' : 'Inactive',
     new Date(u.createdAt).toLocaleDateString(),
@@ -50,13 +52,13 @@ function downloadPDF(users: User[], title: string) {
   td{padding:7px 10px;border-bottom:1px solid #e5e7eb;font-size:12px}tr:nth-child(even) td{background:#f9fafb}
   .badge{display:inline-block;padding:2px 8px;border-radius:99px;font-size:10px;font-weight:600}
   .active{background:#dcfce7;color:#15803d}.inactive{background:#fee2e2;color:#b91c1c}
-  .admin{background:#fee2e2;color:#b91c1c}.teacher{background:#fef3c7;color:#92400e}.user{background:#e0e7ff;color:#3730a3}
+  .admin{background:#fee2e2;color:#b91c1c}.team-member{background:#fef3c7;color:#92400e}.user{background:#e0e7ff;color:#3730a3}
   footer{margin-top:24px;font-size:10px;color:#9ca3af;text-align:center}</style></head>
   <body><h1>EduNepal — ${title}</h1>
   <p>Generated ${new Date().toLocaleString()} &nbsp;·&nbsp; ${users.length} user${users.length !== 1 ? 's' : ''}</p>
-  <table><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Joined</th></tr></thead>
-  <tbody>${users.map(u => `<tr><td>${u.name}</td><td>${u.email}</td>
-  <td><span class="badge ${u.role}">${u.role}</span></td>
+  <table><thead><tr><th>Name</th><th>Email</th><th>Mobile</th><th>Role</th><th>Status</th><th>Joined</th></tr></thead>
+  <tbody>${users.map(u => `<tr><td>${u.name}</td><td>${u.email}</td><td>${u.number}</td>
+  <td><span class="badge ${u.role.replace(/ /g,'-')}">${u.role}</span></td>
   <td><span class="badge ${u.isActive ? 'active' : 'inactive'}">${u.isActive ? 'Active' : 'Inactive'}</span></td>
   <td>${new Date(u.createdAt).toLocaleDateString()}</td></tr>`).join('')}</tbody></table>
   <footer>EduNepal User Report &nbsp;·&nbsp; Confidential</footer>
@@ -130,7 +132,7 @@ export default function AdminUsersPage() {
       setEnrollUser(null);
       setEnrollCourse('');
       setEnrollNote('');
-      fetchUsers(); // refresh so purchasedCourses is up to date
+      fetchUsers();
     } else {
       flash(d.message, false);
     }
@@ -139,17 +141,20 @@ export default function AdminUsersPage() {
   const visible = users.filter(u => {
     if (!search.trim()) return true;
     const q = search.toLowerCase();
-    return u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q);
+    return (
+      u.name.toLowerCase().includes(q) ||
+      u.email.toLowerCase().includes(q) ||
+      u.number.toLowerCase().includes(q)
+    );
   });
 
   const filterLabel =
     filter === 'all' ? 'All Users' :
     filter === 'user' ? 'Students' :
-    filter === 'teacher' ? 'Teachers' : 'Admins';
+    filter === 'team member' ? 'Team Members' : 'Admins';
 
   const inputCls = 'w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white';
 
-  // Check if a user is already enrolled in a specific course
   function isEnrolled(user: User, courseId: string): boolean {
     return (user.purchasedCourses ?? []).map(String).includes(courseId);
   }
@@ -180,10 +185,10 @@ export default function AdminUsersPage() {
       <div className="flex flex-col sm:flex-row gap-3 mb-4 sm:mb-5">
         <div className="flex flex-wrap gap-2">
           {[
-            { key: 'all',     label: 'All'     },
-            { key: 'user',    label: 'Students' },
-            { key: 'teacher', label: 'Teachers' },
-            { key: 'admin',   label: 'Admins'   },
+            { key: 'all',          label: 'All'          },
+            { key: 'user',         label: 'Students'     },
+            { key: 'team member',  label: 'Team Members' },
+            { key: 'admin',        label: 'Admins'       },
           ].map(r => (
             <button key={r.key} onClick={() => setFilter(r.key)} className={`px-3 sm:px-4 py-1.5 rounded-full text-sm font-medium transition ${filter === r.key ? 'bg-indigo-600 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:border-indigo-300'}`}>
               {r.label}
@@ -192,7 +197,7 @@ export default function AdminUsersPage() {
         </div>
         <div className="relative sm:ml-auto">
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">🔍</span>
-          <input type="text" placeholder="Search name or email…" value={search} onChange={e => setSearch(e.target.value)} className="w-full sm:w-56 pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white" />
+          <input type="text" placeholder="Search name, email or mobile…" value={search} onChange={e => setSearch(e.target.value)} className="w-full sm:w-56 pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white" />
         </div>
       </div>
 
@@ -218,6 +223,7 @@ export default function AdminUsersPage() {
                   <div className="min-w-0">
                     <p className="font-semibold text-gray-900 text-sm">{u.name}</p>
                     <p className="text-xs text-gray-400 mt-0.5 break-all">{u.email}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">📱 {u.number}</p>
                     <p className="text-xs text-gray-300 mt-0.5">Joined {new Date(u.createdAt).toLocaleDateString()}</p>
                   </div>
                   <div className="flex flex-col gap-1 items-end shrink-0 ml-2">
@@ -228,7 +234,7 @@ export default function AdminUsersPage() {
                 <div className="flex gap-2 flex-wrap">
                   <select value={u.role} onChange={e => updateUser(u._id, { role: e.target.value })} className="flex-1 text-xs border border-gray-200 rounded-lg px-2 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-400 bg-white">
                     <option value="user">Student</option>
-                    <option value="teacher">Teacher</option>
+                    <option value="team member">Team Member</option>
                     <option value="admin">Admin</option>
                   </select>
                   <button onClick={() => updateUser(u._id, { isActive: !u.isActive })} className={`text-xs px-3 py-2 rounded-lg border transition ${u.isActive ? 'border-red-200 text-red-600 hover:bg-red-50' : 'border-green-200 text-green-600 hover:bg-green-50'}`}>
@@ -249,6 +255,7 @@ export default function AdminUsersPage() {
                 <tr>
                   <th className="px-5 py-3 text-left">Name</th>
                   <th className="px-5 py-3 text-left">Email</th>
+                  <th className="px-5 py-3 text-left">Mobile</th>
                   <th className="px-5 py-3 text-left">Role</th>
                   <th className="px-5 py-3 text-left">Status</th>
                   <th className="px-5 py-3 text-left">Joined</th>
@@ -260,6 +267,7 @@ export default function AdminUsersPage() {
                   <tr key={u._id} className="hover:bg-gray-50">
                     <td className="px-5 py-3 font-medium text-gray-900">{u.name}</td>
                     <td className="px-5 py-3 text-gray-500">{u.email}</td>
+                    <td className="px-5 py-3 text-gray-500">{u.number}</td>
                     <td className="px-5 py-3"><span className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${roleBadge[u.role]}`}>{u.role}</span></td>
                     <td className="px-5 py-3"><span className={`px-2 py-0.5 rounded-full text-xs font-medium ${u.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{u.isActive ? 'Active' : 'Inactive'}</span></td>
                     <td className="px-5 py-3 text-gray-400">{new Date(u.createdAt).toLocaleDateString()}</td>
@@ -267,7 +275,7 @@ export default function AdminUsersPage() {
                       <div className="flex gap-2">
                         <select value={u.role} onChange={e => updateUser(u._id, { role: e.target.value })} className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-400">
                           <option value="user">Student</option>
-                          <option value="teacher">Teacher</option>
+                          <option value="team member">Team Member</option>
                           <option value="admin">Admin</option>
                         </select>
                         <button onClick={() => updateUser(u._id, { isActive: !u.isActive })} className={`text-xs px-3 py-1.5 rounded-lg border transition ${u.isActive ? 'border-red-200 text-red-600 hover:bg-red-50' : 'border-green-200 text-green-600 hover:bg-green-50'}`}>

@@ -9,7 +9,7 @@ import './globals.css';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'EduNepal — Online Learning Platform',
+  title: 'Dhanusha Coaching - Online & Physical Classes',
   description:
     'Buy and access courses, notes, and notices from top teachers.',
 };
