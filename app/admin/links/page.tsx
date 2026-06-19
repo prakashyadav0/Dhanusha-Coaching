@@ -9,9 +9,14 @@ interface LinkItem {
   description: string;
   isActive: boolean;
   startsAt?: string;
-  course?: { title: string } | null;
+  course?: { _id: string; title: string } | null;
   postedBy: { name: string };
   createdAt: string;
+}
+
+interface Course {
+  _id: string;
+  title: string;
 }
 
 const inputCls =
@@ -23,26 +28,37 @@ const TYPE_META = {
 };
 
 export default function AdminLinksPage() {
-  const [links,       setLinks]       = useState<LinkItem[]>([]);
-  const [loading,     setLoading]     = useState(true);
-  const [tab,         setTab]         = useState<'all' | 'live_class' | 'exam'>('all');
-  const [showModal,   setShowModal]   = useState(false);
-  const [saving,      setSaving]      = useState(false);
-  const [msg,         setMsg]         = useState<{ text: string; ok: boolean } | null>(null);
+  const [links,        setLinks]        = useState<LinkItem[]>([]);
+  const [courses,      setCourses]      = useState<Course[]>([]);
+  const [loading,      setLoading]      = useState(true);
+  const [typeTab,      setTypeTab]      = useState<'all' | 'live_class' | 'exam'>('all');
+  const [scopeFilter,  setScopeFilter]  = useState<'all' | 'platform' | string>('all'); // 'all' | 'platform' | courseId
+  const [showModal,    setShowModal]    = useState(false);
+  const [saving,       setSaving]       = useState(false);
+  const [msg,          setMsg]          = useState<{ text: string; ok: boolean } | null>(null);
 
   const [form, setForm] = useState({
-    title: '', url: '', type: 'live_class', description: '', startsAt: '',
+    title: '', url: '', type: 'live_class', description: '', startsAt: '', courseId: '',
   });
 
   // ── Fetch ─────────────────────────────────────────────────────────────────
   async function fetchLinks() {
-    const q = tab === 'all' ? '' : `&type=${tab}`;
+    setLoading(true);
+    const q = typeTab === 'all' ? '' : `&type=${typeTab}`;
     const res = await fetch(`/api/links?all=true${q}`);
     const data = await res.json();
     setLinks(data.links ?? []);
     setLoading(false);
   }
-  useEffect(() => { setLoading(true); fetchLinks(); }, [tab]);
+
+  async function fetchCourses() {
+    const res = await fetch('/api/courses?all=true');
+    const data = await res.json();
+    setCourses(data.courses ?? []);
+  }
+
+  useEffect(() => { fetchCourses(); }, []);
+  useEffect(() => { fetchLinks(); }, [typeTab]);
 
   // ── Create ─────────────────────────────────────────────────────────────────
   async function submitLink(e: React.FormEvent) {
@@ -51,14 +67,21 @@ export default function AdminLinksPage() {
     const res = await fetch('/api/links', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ ...form, startsAt: form.startsAt || undefined }),
+      body:    JSON.stringify({
+        title:       form.title,
+        url:         form.url,
+        type:        form.type,
+        description: form.description,
+        startsAt:    form.startsAt || undefined,
+        courseId:    form.courseId || undefined, // omit if platform-wide
+      }),
     });
     const data = await res.json();
     setSaving(false);
     if (res.ok) {
       setMsg({ text: 'Link created!', ok: true });
       setShowModal(false);
-      setForm({ title: '', url: '', type: 'live_class', description: '', startsAt: '' });
+      setForm({ title: '', url: '', type: 'live_class', description: '', startsAt: '', courseId: '' });
       fetchLinks();
     } else {
       setMsg({ text: data.message, ok: false });
@@ -83,11 +106,18 @@ export default function AdminLinksPage() {
     fetchLinks();
   }
 
-  const tabs = [
-    { key: 'all',        label: 'All Links',   emoji: '🔗' },
+  const typeTabs = [
+    { key: 'all',        label: 'All Links',    emoji: '🔗' },
     { key: 'live_class', label: 'Live Classes', emoji: '🔴' },
     { key: 'exam',       label: 'Exams',        emoji: '📝' },
   ] as const;
+
+  // Client-side scope filter (course-specific or platform-wide)
+  const visibleLinks = links.filter(link => {
+    if (scopeFilter === 'all') return true;
+    if (scopeFilter === 'platform') return !link.course;
+    return link.course?._id === scopeFilter;
+  });
 
   return (
     <div>
@@ -111,14 +141,14 @@ export default function AdminLinksPage() {
         </div>
       )}
 
-      {/* Tabs */}
-      <div className="flex gap-2 mb-5 overflow-x-auto pb-1">
-        {tabs.map(t => (
+      {/* Type tabs */}
+      <div className="flex gap-2 mb-3 overflow-x-auto pb-1">
+        {typeTabs.map(t => (
           <button
             key={t.key}
-            onClick={() => setTab(t.key)}
+            onClick={() => setTypeTab(t.key)}
             className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition ${
-              tab === t.key
+              typeTab === t.key
                 ? 'bg-indigo-600 text-white'
                 : 'bg-white border border-gray-200 text-gray-600 hover:border-indigo-300'
             }`}
@@ -128,19 +158,50 @@ export default function AdminLinksPage() {
         ))}
       </div>
 
+      {/* Scope filter pills */}
+      <div className="flex gap-2 mb-5 overflow-x-auto pb-1">
+        <button
+          onClick={() => setScopeFilter('all')}
+          className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition ${
+            scopeFilter === 'all' ? 'bg-gray-800 text-white' : 'bg-white border border-gray-200 text-gray-500 hover:border-gray-300'
+          }`}
+        >
+          All Scopes
+        </button>
+        <button
+          onClick={() => setScopeFilter('platform')}
+          className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition ${
+            scopeFilter === 'platform' ? 'bg-gray-800 text-white' : 'bg-white border border-gray-200 text-gray-500 hover:border-gray-300'
+          }`}
+        >
+          🌐 Platform-wide
+        </button>
+        {courses.map(c => (
+          <button
+            key={c._id}
+            onClick={() => setScopeFilter(c._id)}
+            className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition ${
+              scopeFilter === c._id ? 'bg-gray-800 text-white' : 'bg-white border border-gray-200 text-gray-500 hover:border-gray-300'
+            }`}
+          >
+            📚 {c.title}
+          </button>
+        ))}
+      </div>
+
       {/* List */}
       {loading ? (
         <div className="space-y-3">
           {[1,2,3].map(i => <div key={i} className="h-24 bg-gray-100 rounded-xl animate-pulse" />)}
         </div>
-      ) : links.length === 0 ? (
+      ) : visibleLinks.length === 0 ? (
         <div className="text-center py-16 text-gray-400">
           <p className="text-4xl mb-3">🔗</p>
-          <p className="text-sm">No links yet. Add one!</p>
+          <p className="text-sm">No links in this scope yet.</p>
         </div>
       ) : (
         <div className="space-y-3">
-          {links.map(link => {
+          {visibleLinks.map(link => {
             const meta = TYPE_META[link.type];
             return (
               <div key={link._id} className={`bg-white border rounded-xl p-4 sm:p-5 shadow-sm ${!link.isActive ? 'opacity-60' : ''}`}>
@@ -152,6 +213,16 @@ export default function AdminLinksPage() {
                       <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full border ${meta.color}`}>
                         {meta.emoji} {meta.label}
                       </span>
+                      {/* Scope badge */}
+                      {link.course ? (
+                        <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
+                          📚 {link.course.title}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full bg-gray-50 text-gray-600 border border-gray-200">
+                          🌐 Platform-wide
+                        </span>
+                      )}
                       {!link.isActive && (
                         <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">Inactive</span>
                       )}
@@ -167,7 +238,6 @@ export default function AdminLinksPage() {
                       {link.startsAt && (
                         <span>🕐 {new Date(link.startsAt).toLocaleString()}</span>
                       )}
-                      {link.course && <span>📚 {link.course.title}</span>}
                       <span>By {link.postedBy?.name}</span>
                       <span>{new Date(link.createdAt).toLocaleDateString()}</span>
                     </div>
@@ -246,6 +316,26 @@ export default function AdminLinksPage() {
                     );
                   })}
                 </div>
+              </div>
+
+              {/* Scope selector — course or platform-wide */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Post to</label>
+                <select
+                  value={form.courseId}
+                  onChange={e => setForm({ ...form, courseId: e.target.value })}
+                  className={inputCls}
+                >
+                  <option value="">🌐 Platform-wide (all students)</option>
+                  {courses.map(c => (
+                    <option key={c._id} value={c._id}>📚 {c.title}</option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-400 mt-1">
+                  {form.courseId
+                    ? 'Only students enrolled in this course will see this link.'
+                    : 'Visible to every logged-in user.'}
+                </p>
               </div>
 
               <Field label="Title">

@@ -4,21 +4,53 @@ import Link from '@/models/Link';
 import { requireAuth, requireRole } from '@/lib/apiAuth';
 
 // GET /api/links?type=live_class|exam
-// Authenticated users can view active links
+// Authenticated users can view active links.
+// Non-admin users only see platform-wide links (course: null) plus links
+// scoped to courses they have purchased.
 export async function GET(req: NextRequest) {
-  const { error } = await requireAuth();
+  const { session, error } = await requireAuth();
   if (error) return error;
 
   const { searchParams } = new URL(req.url);
-  const type    = searchParams.get('type');   // 'live_class' | 'exam' | null (all)
-  const all     = searchParams.get('all');    // admin passes ?all=true to see inactive too
+  const type     = searchParams.get('type');      // 'live_class' | 'exam' | null (all)
+  const all      = searchParams.get('all');       // admin passes ?all=true to see inactive too
+  const courseId = searchParams.get('courseId');  // optional: filter to one specific course
 
   try {
     await dbConnect();
 
     const filter: Record<string, any> = {};
-    if (type)       filter.type     = type;
-    if (all !== 'true') filter.isActive = true;
+    if (type)            filter.type     = type;
+    if (all !== 'true')  filter.isActive = true;
+
+    const isAdmin = session!.user.role === 'admin';
+
+    if (courseId) {
+      // Explicit single-course request (e.g. admin filtering by scope,
+      // or a course-detail page). Still enforce enrollment for non-admins.
+      if (!isAdmin) {
+        const User = (await import('@/models/User')).default;
+        const user = await User.findById(session!.user.id).select('purchasedCourses').lean();
+        const owns = (user?.purchasedCourses ?? []).map(String).includes(courseId);
+        if (!owns) {
+          return NextResponse.json({ links: [] }); // not enrolled — show nothing
+        }
+      }
+      filter.course = courseId;
+    } else if (!isAdmin) {
+      // No specific course requested: non-admins see
+      //   1) platform-wide links (course is null), AND
+      //   2) links scoped to any course they own
+      const User = (await import('@/models/User')).default;
+      const user = await User.findById(session!.user.id).select('purchasedCourses').lean();
+      const ownedCourseIds = (user?.purchasedCourses ?? []).map((id: any) => id.toString());
+
+      filter.$or = [
+        { course: null },
+        { course: { $in: ownedCourseIds } },
+      ];
+    }
+    // Admins with no courseId see everything (no extra filter needed)
 
     const links = await Link.find(filter)
       .populate('postedBy', 'name')

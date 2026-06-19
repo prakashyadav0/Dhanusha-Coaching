@@ -8,7 +8,7 @@ interface LinkItem {
   url: string;
   description: string;
   startsAt?: string;
-  course?: { title: string } | null;
+  course?: { _id: string; title: string } | null;
   postedBy: { name: string };
   createdAt: string;
 }
@@ -18,6 +18,8 @@ export default function LiveClassesPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // No courseId param → API automatically returns platform-wide links
+    // PLUS links scoped to courses this user has purchased.
     fetch('/api/links?type=live_class')
       .then(r => r.json())
       .then(d => { setLinks(d.links ?? []); setLoading(false); });
@@ -44,15 +46,17 @@ export default function LiveClassesPage() {
         <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center text-xl">🔴</div>
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Live Classes</h1>
-          <p className="text-sm text-gray-500">Join your scheduled live sessions</p>
+          <p className="text-sm text-gray-500">Sessions for everyone &amp; your enrolled courses</p>
         </div>
       </div>
 
       {links.length === 0 ? (
         <div className="text-center py-20 text-gray-400">
           <p className="text-5xl mb-3">🔴</p>
-          <p className="font-medium text-gray-500">No live classes scheduled yet.</p>
-          <p className="text-sm mt-1">Check back soon!</p>
+          <p className="font-medium text-gray-500">No live classes available right now.</p>
+          <p className="text-sm mt-1">
+            Enroll in a course to unlock more sessions, or check back soon!
+          </p>
         </div>
       ) : (
         <div className="space-y-3 sm:space-y-4">
@@ -69,22 +73,30 @@ export default function LiveClassesPage() {
 
                 {/* Content */}
                 <div className="flex-1 min-w-0">
+                  <div className="flex flex-wrap items-center gap-2 mb-1">
+                    {/* Scope badge — distinguishes platform-wide vs course-specific */}
+                    {link.course ? (
+                      <span className="text-xs font-semibold bg-indigo-50 text-indigo-700 px-2.5 py-0.5 rounded-full border border-indigo-100">
+                        📚 {link.course.title}
+                      </span>
+                    ) : (
+                      <span className="text-xs font-semibold bg-gray-100 text-gray-600 px-2.5 py-0.5 rounded-full">
+                        🌐 For Everyone
+                      </span>
+                    )}
+                  </div>
+
                   <h3 className="font-semibold text-gray-900 text-base sm:text-lg">{link.title}</h3>
 
                   {link.description && (
                     <p className="text-sm text-gray-500 mt-0.5 line-clamp-2">{link.description}</p>
                   )}
 
-                  <div className="flex flex-wrap gap-3 mt-2 text-xs text-gray-400">
-                    {link.startsAt && (
-                      <span className="flex items-center gap-1">
-                        🕐 {new Date(link.startsAt).toLocaleString()}
-                      </span>
-                    )}
-                    {link.course && (
-                      <span className="flex items-center gap-1">📚 {link.course.title}</span>
-                    )}
-                  </div>
+                  {link.startsAt && (
+                    <p className="text-xs text-gray-400 mt-2 flex items-center gap-1">
+                      🕐 {new Date(link.startsAt).toLocaleString()}
+                    </p>
+                  )}
                 </div>
 
                 {/* Join button */}

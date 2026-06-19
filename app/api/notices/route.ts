@@ -17,10 +17,11 @@ export async function GET(req: NextRequest) {
     const filter: Record<string, any> = {};
 
     if (courseId) {
+      // Course-specific notices
       filter.course = courseId;
     } else {
-      // Platform-wide notices: target role must match or be 'all'
-      filter.course = null;
+      // Platform-wide notices: match docs where course is null, undefined, or missing
+      filter.course = { $in: [null, undefined] };
       if (session!.user.role !== 'admin') {
         filter.targetRole = { $in: ['all', session!.user.role] };
       }
@@ -28,7 +29,8 @@ export async function GET(req: NextRequest) {
 
     const notices = await Notice.find(filter)
       .sort({ isPinned: -1, createdAt: -1 })
-      .populate('postedBy', 'name role');
+      .populate('postedBy', 'name role')
+      .populate('course', 'title');
 
     return NextResponse.json({ notices });
   } catch (error: any) {

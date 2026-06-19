@@ -8,7 +8,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/admin/courses':    'Courses',
   '/admin/notices':    'Notices',
   '/admin/users':      'Users',
-  '/admin/payments':   'Bank Payments',   // ← was missing
+  '/admin/payments':   'Bank Payments',
   '/teacher/dashboard':'Dashboard',
   '/teacher/notices':  'Notices',
   '/teacher/notes':    'Notes',
@@ -84,7 +84,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         `}
       />
 
-       
       <aside
         className={`
           fixed inset-y-0 left-0 z-40
@@ -103,7 +102,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         {/* Mobile top bar — hidden on lg */}
         <header className="lg:hidden shrink-0 flex items-center gap-3 px-3 h-14 bg-white border-b border-gray-200 z-20">
-          {/* Hamburger — large tap target */}
           <button
             onClick={() => setOpen(true)}
             aria-label="Open menu"
@@ -113,20 +111,24 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
-
-          {/* Page title */}
           <span className="flex-1 text-sm font-semibold text-gray-800 truncate">
             {pageTitle}
           </span>
-
-          {/* Brand mark */}
           <span className="text-sm font-bold text-red-600 shrink-0">Dhanusha Coaching</span>
         </header>
 
         {/* Scrollable page content */}
         <main className="flex-1 overflow-y-auto overscroll-contain">
-          <div className="p-4 sm:p-6 lg:p-8 min-h-full">
-            {children}
+          <div className="flex flex-col min-h-full p-4 sm:p-6 lg:p-8">
+            {/* Page content */}
+            <div className="flex-1">
+              {children}
+            </div>
+
+            {/* --- FOOTER --- */}
+            <footer className="mt-8 pt-4 border-t border-gray-200 text-center text-xs text-gray-500">
+              &copy; {new Date().getFullYear()} Dhanusha Coaching. All rights reserved.
+            </footer>
           </div>
         </main>
       </div>
