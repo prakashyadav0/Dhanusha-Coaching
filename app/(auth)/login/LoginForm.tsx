@@ -1,126 +1,123 @@
 'use client';
-
 import { useState } from 'react';
-import { signIn } from 'next-auth/react';
+import { signIn, getSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
 export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const callbackUrl = searchParams.get('callbackUrl') || '';
 
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-
-    if (loading) return;
-
     setLoading(true);
     setError('');
 
-    try {
-      const result = await signIn('credentials', {
-        email: email.trim().toLowerCase(),
-        password,
-        redirect: false,
-      });
+    const result = await signIn('credentials', {
+      email,
+      password,
+      redirect: false,
+    });
 
-      if (result?.error) {
-        setError(result.error);
-        return;
-      }
-
-      const sessionRes = await fetch('/api/auth/session', {
-        cache: 'no-store',
-      });
-
-      const session = await sessionRes.json();
-      const role = session?.user?.role;
-
-      // priority: callback first
-      if (callbackUrl) {
-        router.replace(callbackUrl);
-        return;
-      }
-
-      // role-based routing
-      switch (role) {
-        case 'admin':
-          router.replace('/admin/dashboard');
-          break;
-
-        case 'team member':
-          router.replace('/team/dashboard');
-          break;
-
-        default:
-          router.replace('/user/dashboard');
-          break;
-      }
-
-      router.refresh();
-    } catch {
-      setError('Something went wrong. Please try again.');
-    } finally {
+    if (result?.error) {
       setLoading(false);
+      setError(result.error);
+      return;
     }
+
+    if (!result?.ok) {
+      setLoading(false);
+      setError('Something went wrong. Please try again.');
+      return;
+    }
+
+    // ── Why this matters ──────────────────────────────────────────────────
+    // signIn() resolving does NOT guarantee the session cookie has fully
+    // propagated and is queryable yet. A plain fetch('/api/auth/session')
+    // right after signIn() can intermittently return an empty session,
+    // especially under slower network/DB conditions — causing the
+    // "sometimes doesn't redirect" bug.
+    //
+    // getSession() is NextAuth's own client helper and is more reliable,
+    // but to be fully safe we retry a few times with a short delay until
+    // the session actually contains a user. This makes the redirect
+    // deterministic regardless of cookie-write timing.
+    let session = await getSession();
+    let attempts = 0;
+    while (!session?.user && attempts < 5) {
+      await new Promise(r => setTimeout(r, 150));
+      session = await getSession();
+      attempts++;
+    }
+
+    setLoading(false);
+
+    if (!session?.user) {
+      // Extremely unlikely after retries, but fail safely instead of
+      // silently doing nothing.
+      setError('Signed in, but could not load your session. Please refresh and try again.');
+      return;
+    }
+
+    const role = session.user.role;
+    const destination =
+      callbackUrl ||
+      (role === 'admin' ? '/admin/dashboard' :
+       role === 'teacher' ? '/teacher/dashboard' :
+       '/user/dashboard');
+
+    // router.refresh() forces the Next.js router cache to pick up the new
+    // session before navigating, preventing middleware from briefly seeing
+    // a stale/unauthenticated state and bouncing back to /login.
+    router.refresh();
+    router.push(destination);
   }
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
-      <div className="w-full max-w-md rounded-2xl border border-gray-100 bg-white p-8 shadow-sm">
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 w-full max-w-md p-8">
         <div className="text-center mb-8">
-          <Link href="/" className="text-2xl font-bold text-red-600">
-            Dhanusha Coaching
+          <Link href="/" className="text-2xl font-bold text-indigo-600">
+            EduNepal
           </Link>
-          <p className="text-gray-600 mt-2 text-sm">
-            Sign in to your account
-          </p>
+          <h2 className="text-gray-700 mt-2 text-sm">Sign in to your account</h2>
         </div>
 
         {error && (
-          <div className="mb-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-lg mb-5">
             {error}
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Email
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
             <input
               type="email"
               required
-              autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               placeholder="you@example.com"
             />
           </div>
-
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Password
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
             <input
               type="password"
               required
-              autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               placeholder="••••••••"
             />
           </div>
-
           <button
             type="submit"
             disabled={loading}

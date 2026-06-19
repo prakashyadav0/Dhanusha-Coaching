@@ -4,15 +4,18 @@ import { usePathname } from 'next/navigation';
 import Sidebar from './Sidebar';
 
 const PAGE_TITLES: Record<string, string> = {
-  '/admin/dashboard':  'Dashboard',
-  '/admin/courses':    'Courses',
-  '/admin/notices':    'Notices',
-  '/admin/users':      'Users',
-  '/admin/payments':   'Bank Payments',
-  '/teacher/dashboard':'Dashboard',
-  '/teacher/notices':  'Notices',
-  '/teacher/notes':    'Notes',
-  '/user/dashboard':   'Dashboard',
+  '/admin/dashboard':   'Dashboard',
+  '/admin/courses':     'Courses',
+  '/admin/notices':     'Notices',
+  '/admin/users':       'Users',
+  '/admin/payments':    'Bank Payments',
+  '/admin/links':       'Live Classes & Exams',
+  '/teacher/dashboard': 'Dashboard',
+  '/teacher/notices':   'Notices',
+  '/teacher/notes':     'Notes',
+  '/user/dashboard':    'Dashboard',
+  '/user/live-classes': 'Live Classes',
+  '/user/exams':        'Exams',
 };
 
 function getPageTitle(pathname: string): string {
@@ -20,7 +23,7 @@ function getPageTitle(pathname: string): string {
   if (pathname.includes('/videos'))  return 'Videos';
   if (pathname.includes('/notes'))   return 'Notes';
   if (pathname.includes('/notices')) return 'Notices';
-  return '';
+  return 'EduNepal';
 }
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -71,7 +74,24 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const pageTitle = getPageTitle(pathname);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50">
+    /*
+      ── Why "stuck scrolling in the middle" happened ──────────────────────
+      The old root used `h-screen` (= 100vh) with `overflow-hidden`, and put
+      the actual scroll container inside as a flex child with `overflow-y-auto`.
+      On mobile browsers, 100vh does NOT account for the address bar
+      collapsing/expanding as you scroll — it's measured against the LARGEST
+      possible viewport. That mismatch causes the inner scroll container's
+      height to be miscalculated, so content gets visually clipped partway
+      through and stops scrolling before reaching the bottom/footer.
+
+      Fix: use 100dvh (dynamic viewport height) with a 100vh fallback via
+      min-h, and ensure there is exactly ONE scroll container for the page
+      content — no nested overflow traps competing for touch scroll events.
+    */
+    <div
+      className="flex flex-col lg:flex-row bg-gray-50"
+      style={{ height: '100dvh', minHeight: '100vh' }}
+    >
 
       {/* Backdrop — tapping it closes the drawer */}
       <div
@@ -84,6 +104,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         `}
       />
 
+      {/* Sidebar
+          Mobile  → fixed drawer, slides in from left (w-[280px], max 85vw)
+          Desktop → static column, always visible (lg:w-64)
+      */}
       <aside
         className={`
           fixed inset-y-0 left-0 z-40
@@ -93,15 +117,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           lg:static lg:translate-x-0 lg:w-64 lg:z-auto lg:transition-none lg:shrink-0
           ${open ? 'translate-x-0 shadow-2xl' : '-translate-x-full lg:shadow-none'}
         `}
+        style={{ height: '100dvh' }}
       >
         <Sidebar onClose={() => setOpen(false)} />
       </aside>
 
-      {/* Main content column */}
-      <div className="flex flex-col flex-1 min-w-0 h-full">
+      {/* Main content column — exactly one scroll container lives here */}
+      <div className="flex flex-col flex-1 min-w-0 min-h-0">
 
-        {/* Mobile top bar — hidden on lg */}
+        {/* Mobile top bar — hidden on lg, NOT part of the scroll area */}
         <header className="lg:hidden shrink-0 flex items-center gap-3 px-3 h-14 bg-white border-b border-gray-200 z-20">
+          {/* Hamburger — large tap target */}
           <button
             onClick={() => setOpen(true)}
             aria-label="Open menu"
@@ -111,22 +137,33 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
+
+          {/* Page title */}
           <span className="flex-1 text-sm font-semibold text-gray-800 truncate">
             {pageTitle}
           </span>
-          <span className="text-sm font-bold text-red-600 shrink-0">Dhanusha Coaching</span>
+
+          {/* Brand mark */}
+          <span className="text-sm font-bold text-indigo-600 shrink-0"></span>
         </header>
 
-        {/* Scrollable page content */}
-        <main className="flex-1 overflow-y-auto overscroll-contain">
-          <div className="flex flex-col min-h-full p-4 sm:p-6 lg:p-8">
-            {/* Page content */}
-            <div className="flex-1">
-              {children}
-            </div>
-
-            {/* --- FOOTER --- */}
-            
+        {/*
+          THE scroll container.
+          - flex-1 + min-h-0 is required inside a flex column for overflow
+            to work correctly (without min-h-0, flex children refuse to
+            shrink below their content size, which silently breaks scrolling).
+          - overscroll-behavior-y: contain stops "scroll chaining" — i.e.
+            prevents the page from rubber-banding into pulling the body
+            behind it once you hit the top/bottom.
+          - -webkit-overflow-scrolling: touch gives native momentum
+            scrolling on iOS Safari.
+        */}
+        <main
+          className="flex-1 min-h-0 overflow-y-auto overscroll-y-contain"
+          style={{ WebkitOverflowScrolling: 'touch' }}
+        >
+          <div className="p-4 sm:p-6 lg:p-8">
+            {children}
           </div>
         </main>
       </div>

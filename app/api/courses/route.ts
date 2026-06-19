@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { revalidatePath } from 'next/cache';
 import dbConnect from '@/lib/Db';
 import Course from '@/models/Course';
 import { requireRole } from '@/lib/apiAuth';
@@ -47,6 +48,9 @@ export async function POST(req: NextRequest) {
       thumbnail: thumbnail ?? '',
       teacher: teacherId ?? session!.user.id,
     });
+
+    // Bust the cache for the public home page so the new course shows immediately
+    revalidatePath('/');
 
     return NextResponse.json({ message: 'Course created', course }, { status: 201 });
   } catch (error: any) {

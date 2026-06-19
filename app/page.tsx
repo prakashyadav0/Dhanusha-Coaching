@@ -5,8 +5,15 @@ import Course from '@/models/Course';
 import '@/models/User';
 
 import Hero from '@/components/shared/Hero';
-
 import MapSection from '@/components/shared/MapSection';
+
+// ─── Force dynamic rendering ────────────────────────────────────────────────
+// Without this, Next.js may statically render this page at build time and
+// cache it indefinitely, so course edits (publish/unpublish, price, title,
+// thumbnail) won't show up until a redeploy. These two exports tell Next.js
+// to always run getCourses() fresh on every request.
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 async function getCourses() {
   await dbConnect();
@@ -27,73 +34,73 @@ export default async function HomePage() {
   return (
     <>
       <Hero />
-      
-    <div className="bg-gray-50">
-      {/* Courses */}
-      <section className="max-w-6xl mx-auto px-4 py-16">
-        <h2 className="text-2xl font-bold text-gray-800 mb-8">
-          Available Courses
-        </h2>
 
-        {courses.length === 0 ? (
-          <p className="text-gray-500 text-center py-16">
-            No courses published yet.
-          </p>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {courses.map((course: any) => (
-              <div
-                key={course._id}
-                className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition"
-              >
-                {course.thumbnail ? (
-                  <img
-                    src={course.thumbnail}
-                    alt={course.title}
-                    className="w-full h-44 object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-44 bg-indigo-100 flex items-center justify-center">
-                    <span className="text-indigo-400 text-5xl">📚</span>
-                  </div>
-                )}
+      <div className="bg-gray-50">
+        {/* Courses */}
+        <section className="max-w-6xl mx-auto px-4 py-16">
+          <h2 className="text-2xl font-bold text-gray-800 mb-8">
+            Available Courses
+          </h2>
 
-                <div className="p-5">
-                  <h3 className="font-semibold text-gray-900 text-lg mb-1 line-clamp-2">
-                    {course.title}
-                  </h3>
+          {courses.length === 0 ? (
+            <p className="text-gray-500 text-center py-16">
+              No courses published yet.
+            </p>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {courses.map((course: any) => (
+                <div
+                  key={course._id}
+                  className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition"
+                >
+                  {course.thumbnail ? (
+                    <img
+                      src={course.thumbnail}
+                      alt={course.title}
+                      className="w-full h-44 object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-44 bg-indigo-100 flex items-center justify-center">
+                      <span className="text-indigo-400 text-5xl">📚</span>
+                    </div>
+                  )}
 
-                  <p className="text-gray-500 text-sm mb-3 line-clamp-2">
-                    {course.description}
-                  </p>
+                  <div className="p-5">
+                    <h3 className="font-semibold text-gray-900 text-lg mb-1 line-clamp-2">
+                      {course.title}
+                    </h3>
 
-                  <p className="text-sm text-gray-400 mb-4">
-                    By {course.teacher?.name ?? 'Unknown'}
-                  </p>
+                    <p className="text-gray-500 text-sm mb-3 line-clamp-2">
+                      {course.description}
+                    </p>
 
-                  <div className="flex items-center justify-between">
-                    <span className="text-indigo-600 font-bold text-lg">
-                      {course.price === 0
-                        ? 'Free'
-                        : `Rs. ${course.price}`}
-                    </span>
+                    <p className="text-sm text-gray-400 mb-4">
+                      By {course.teacher?.name ?? 'Unknown'}
+                    </p>
 
-                    <Link
-                      href="/login"
-                      className="bg-indigo-600 text-white text-sm px-4 py-2 rounded-lg hover:bg-indigo-700 transition"
-                    >
-                      Enroll Now
-                    </Link>
+                    <div className="flex items-center justify-between">
+                      <span className="text-indigo-600 font-bold text-lg">
+                        {course.price === 0
+                          ? 'Free'
+                          : `Rs. ${course.price}`}
+                      </span>
+
+                      <Link
+                        href="/login"
+                        className="bg-indigo-600 text-white text-sm px-4 py-2 rounded-lg hover:bg-indigo-700 transition"
+                      >
+                        Enroll Now
+                      </Link>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
-    </div>
+              ))}
+            </div>
+          )}
+        </section>
+      </div>
+
       <MapSection />
-      
     </>
   );
 }
