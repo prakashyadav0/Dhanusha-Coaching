@@ -126,9 +126,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </div>
 
             {/* --- FOOTER --- */}
-            <footer className="mt-8 pt-4 border-t border-gray-200 text-center text-xs text-gray-500">
-              &copy; {new Date().getFullYear()} Dhanusha Coaching. All rights reserved.
-            </footer>
+            
           </div>
         </main>
       </div>
