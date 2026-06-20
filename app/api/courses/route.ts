@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { revalidatePath } from 'next/cache';
 import dbConnect from '@/lib/Db';
 import Course from '@/models/Course';
+import Order from '@/models/Order';
 import { requireRole } from '@/lib/apiAuth';
 
 // GET /api/courses — public list of published courses
@@ -15,7 +16,26 @@ export async function GET(req: NextRequest) {
 
     const courses = await Course.find(filter)
       .populate('teacher', 'name email avatar')
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // Only the admin "all courses" view needs enrollment counts —
+    // skip this extra query for the public home page for performance.
+    if (all && courses.length > 0) {
+      const counts = await Order.aggregate([
+        { $match: { status: 'paid', course: { $in: courses.map(c => c._id) } } },
+        { $group: { _id: '$course', count: { $sum: 1 } } },
+      ]);
+
+      const countMap = new Map(counts.map(c => [c._id.toString(), c.count]));
+
+      const coursesWithCounts = courses.map(c => ({
+        ...c,
+        enrolledCount: countMap.get(c._id.toString()) ?? 0,
+      }));
+
+      return NextResponse.json({ courses: coursesWithCounts });
+    }
 
     return NextResponse.json({ courses });
   } catch (error: any) {

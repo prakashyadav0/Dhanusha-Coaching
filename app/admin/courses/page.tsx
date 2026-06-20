@@ -10,6 +10,7 @@ interface Course {
   isPublished: boolean;
   totalVideos: number;
   totalNotes: number;
+  enrolledCount?: number;
   teacher: { name: string };
 }
 
@@ -169,15 +170,23 @@ export default function AdminCoursesPage() {
                     Rs. {course.price} · {course.totalVideos} videos ·{' '}
                     {course.totalNotes} notes
                   </p>
-                  <span
-                    className={`mt-2 inline-block text-xs font-medium px-2 py-0.5 rounded-full ${
-                      course.isPublished
-                        ? 'bg-green-100 text-green-700'
-                        : 'bg-gray-100 text-gray-500'
-                    }`}
-                  >
-                    {course.isPublished ? 'Published' : 'Draft'}
-                  </span>
+
+                  <div className="flex flex-wrap items-center gap-2 mt-2">
+                    <span
+                      className={`inline-block text-xs font-medium px-2 py-0.5 rounded-full ${
+                        course.isPublished
+                          ? 'bg-green-100 text-green-700'
+                          : 'bg-gray-100 text-gray-500'
+                      }`}
+                    >
+                      {course.isPublished ? 'Published' : 'Draft'}
+                    </span>
+
+                    {/* Enrolled student count */}
+                    <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100">
+                      🎓 {course.enrolledCount ?? 0} enrolled
+                    </span>
+                  </div>
                 </div>
                 <div className="flex flex-wrap gap-2 shrink-0">
                   <button

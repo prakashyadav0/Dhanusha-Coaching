@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { useSession, signOut } from 'next-auth/react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 export default function Navbar() {
   const { data: session } = useSession();
@@ -15,6 +15,18 @@ export default function Navbar() {
       : session?.user.role === 'teacher'
       ? '/teacher/dashboard'
       : '/user/dashboard';
+
+  // Close mobile menu on scroll
+  useEffect(() => {
+    if (!menuOpen) return;
+
+    const handleScroll = () => {
+      setMenuOpen(false);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [menuOpen]);
 
   return (
     <nav className="bg-white border-b border-gray-200 sticky top-0 z-20 shadow-sm">
@@ -39,71 +51,69 @@ export default function Navbar() {
         </Link>
 
         {/* Desktop Navigation */}
-        {/* Desktop Navigation */}
-<div className="hidden sm:flex items-center gap-8 absolute left-1/2 -translate-x-1/2">
-<Link
-    href="/"
-    className="text-sm font-medium text-gray-600 hover:text-indigo-600 transition"
-  >
-    Home
-  </Link>
-  <Link
-    href="/user/dashboard"
-    className="text-sm font-medium text-gray-600 hover:text-indigo-600 transition"
-  >
-    Courses
-  </Link>
-  <Link
-    href="/about"
-    className="text-sm font-medium text-gray-600 hover:text-indigo-600 transition"
-  >
-    About Us
-  </Link>
+        <div className="hidden sm:flex items-center gap-8 absolute left-1/2 -translate-x-1/2">
+          <Link
+            href="/"
+            className="text-sm font-medium text-gray-600 hover:text-indigo-600 transition"
+          >
+            Home
+          </Link>
+          <Link
+            href="/user/dashboard"
+            className="text-sm font-medium text-gray-600 hover:text-indigo-600 transition"
+          >
+            Courses
+          </Link>
+          <Link
+            href="/about"
+            className="text-sm font-medium text-gray-600 hover:text-indigo-600 transition"
+          >
+            About Us
+          </Link>
+          <Link
+            href="/contact"
+            className="text-sm font-medium text-gray-600 hover:text-indigo-600 transition"
+          >
+            Contact Us
+          </Link>
+        </div>
 
-  <Link
-    href="/contact"
-    className="text-sm font-medium text-gray-600 hover:text-indigo-600 transition"
-  >
-    Contact Us
-  </Link>
-</div>
+        {/* Right Side Auth Buttons */}
+        <div className="hidden sm:flex items-center gap-4">
+          {session ? (
+            <>
+              <Link
+                href={dashboardHref}
+                className="text-sm text-gray-600 hover:text-indigo-600 transition"
+              >
+                Dashboard
+              </Link>
 
-{/* Right Side Auth Buttons */}
-<div className="hidden sm:flex items-center gap-4">
-  {session ? (
-    <>
-      <Link
-        href={dashboardHref}
-        className="text-sm text-gray-600 hover:text-indigo-600 transition"
-      >
-        Dashboard
-      </Link>
+              <button
+                onClick={() => signOut({ callbackUrl: '/' })}
+                className="text-sm bg-gray-100 hover:bg-red-500 hover:text-white px-4 py-2 rounded-lg transition"
+              >
+                Sign Out
+              </button>
+            </>
+          ) : (
+            <>
+              <Link
+                href="/login"
+                className="text-sm text-gray-600 hover:text-indigo-600"
+              >
+                Login
+              </Link>
 
-      <button
-        onClick={() => signOut({ callbackUrl: '/' })}
-        className="text-sm bg-gray-100 hover:bg-red-500 hover:text-white px-4 py-2 rounded-lg transition"
-      >
-        Sign Out
-      </button>
-    </>
-  ) : (
-    <>
-      <Link
-        href="/login"
-        className="text-sm text-gray-600 hover:text-indigo-600"
-      >
-        Login
-      </Link>
-
-      <Link
-        href="/register"
-        className="text-sm bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition"
-      >
-        Register
-      </Link>
-    </>
-  )}
-</div>
+              <Link
+                href="/register"
+                className="text-sm bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition"
+              >
+                Register
+              </Link>
+            </>
+          )}
+        </div>
 
         {/* Mobile Hamburger */}
         <button
@@ -143,10 +153,15 @@ export default function Navbar() {
         </button>
       </div>
 
-      {/* Mobile Menu */}
-      {menuOpen && (
-        <div className="sm:hidden border-t border-gray-100 px-4 py-3 space-y-2 bg-white">
-          
+      {/* Mobile Menu – always rendered, with smooth slide transition */}
+      <div
+        className={`
+          sm:hidden border-t border-gray-100 bg-white
+          overflow-hidden transition-all duration-300 ease-in-out
+          ${menuOpen ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}
+        `}
+      >
+        <div className="px-4 py-3 space-y-2">
           <Link
             href="/about"
             onClick={() => setMenuOpen(false)}
@@ -200,7 +215,7 @@ export default function Navbar() {
             </>
           )}
         </div>
-      )}
+      </div>
     </nav>
   );
 }
