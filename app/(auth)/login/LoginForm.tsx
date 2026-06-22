@@ -83,8 +83,8 @@ export default function LoginPage() {
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 w-full max-w-md p-8">
         <div className="text-center mb-8">
-          <Link href="/" className="text-2xl font-bold text-indigo-600">
-            EduNepal
+          <Link href="/" className="text-2xl font-bold text-red-600">
+            Dhanusha Coaching
           </Link>
           <h2 className="text-gray-700 mt-2 text-sm">Sign in to your account</h2>
         </div>
