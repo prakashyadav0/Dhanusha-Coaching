@@ -124,7 +124,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <span className="flex-1 text-sm font-semibold text-gray-800 truncate">
             {pageTitle}
           </span>
-          <span className="text-sm font-bold text-indigo-600 shrink-0">EduNepal</span>
+          
         </header>
 
         {/* Page content — plain block, grows naturally, page scrolls past it */}

@@ -8,7 +8,7 @@ if (!MONGODB_URI) {
 
 // Cached connection (avoids multiple connections in dev due to hot reload)
 interface MongooseCache {
-  conn: typeof mongoose | null; 
+  conn: typeof mongoose | null;
   promise: Promise<typeof mongoose> | null;
 }
 
@@ -26,6 +26,9 @@ async function dbConnect(): Promise<typeof mongoose> {
   if (!cached.promise) {
     cached.promise = mongoose.connect(MONGODB_URI, {
       bufferCommands: false,
+      maxPoolSize: 10,
+      minPoolSize: 2,
+      serverSelectionTimeoutMS: 5000,
     });
   }
 
