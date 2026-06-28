@@ -118,3 +118,38 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ message: error.message }, { status: 500 });
   }
 }
+
+// Add this to your existing api/videos/route.ts
+// alongside your existing GET, POST, DELETE handlers
+
+// PATCH /api/videos?id=xxx — admin only
+export async function PATCH(req: NextRequest) {
+  const { error } = await requireRole('admin');
+  if (error) return error;
+
+  const { searchParams } = new URL(req.url);
+  const id = searchParams.get('id');
+  if (!id) return NextResponse.json({ message: 'id is required' }, { status: 400 });
+
+  try {
+    const body = await req.json();
+    const { title, description, youtubeUrl } = body;
+
+    const update: Record<string, string> = {};
+    if (title) update.title = title;
+    if (description !== undefined) update.description = description;
+    if (youtubeUrl) {
+      update.youtubeUrl = youtubeUrl;
+      const match = youtubeUrl.match(/(?:youtu\.be\/|v=|embed\/)([^&\n?#]+)/);
+      update.youtubeId = match ? match[1] : '';
+    }
+
+    await dbConnect();
+    const video = await Video.findByIdAndUpdate(id, update, { new: true });
+    if (!video) return NextResponse.json({ message: 'Video not found' }, { status: 404 });
+
+    return NextResponse.json({ message: 'Video updated', video });
+  } catch (error: any) {
+    return NextResponse.json({ message: error.message }, { status: 500 });
+  }
+}

@@ -163,6 +163,21 @@ export default function Navbar() {
       >
         <div className="px-4 py-3 space-y-2">
           <Link
+            href="/"
+            onClick={() => setMenuOpen(false)}
+            className="block text-sm text-gray-700 py-2"
+          >
+            Home
+          </Link>
+          
+          <Link
+            href="/user/dashboard"
+            onClick={() => setMenuOpen(false)}
+            className="block text-sm text-gray-700 py-2"
+          >
+            Courses
+          </Link>
+          <Link
             href="/about"
             onClick={() => setMenuOpen(false)}
             className="block text-sm text-gray-700 py-2"

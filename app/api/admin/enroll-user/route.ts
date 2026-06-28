@@ -6,14 +6,16 @@ import Course from '@/models/Course';
 import { requireRole } from '@/lib/apiAuth';
 
 // POST /api/admin/enroll-user
-// Body: { userId, courseId, note? }
-// Grants a user access to a specific course for free — manual enrollment by admin.
+// Body: { userId, courseId, note?, price? }
+// Grants a user access to a specific course — manual enrollment by admin.
+// price defaults to 0 (free grant). Any price > 0 is recorded as a paid
+// manual Order, so it counts toward revenue alongside Khalti/eSewa/bank orders.
 export async function POST(req: NextRequest) {
   const { session, error } = await requireRole('admin');
   if (error) return error;
 
   try {
-    const { userId, courseId, note } = await req.json();
+    const { userId, courseId, note, price } = await req.json();
 
     if (!userId || !courseId) {
       return NextResponse.json(
@@ -21,6 +23,10 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
+
+    // Normalize price — default to 0 (free), reject negative/garbage input
+    const amount = Number(price);
+    const safeAmount = Number.isFinite(amount) && amount > 0 ? amount : 0;
 
     await dbConnect();
 
@@ -48,15 +54,17 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Create a paid manual order — this is the audit record
+    // Create a manual order — this is the audit record. Paid or free, it's
+    // still paymentMethod 'manual' (didn't go through a real gateway), but
+    // amount now reflects whatever the admin charged.
     await Order.create({
       user:          userId,
       course:        courseId,
-      amount:        0,               // free — admin granted
+      amount:        safeAmount,
       status:        'paid',
       paymentMethod: 'manual',
       grantedBy:     session!.user.id,
-      grantNote:     note?.trim() || 'Manual enrollment by admin',
+      grantNote:     note?.trim() || (safeAmount > 0 ? 'Manual enrollment by admin' : 'Manual enrollment by admin (free)'),
       paidAt:        new Date(),
     });
 
@@ -66,7 +74,10 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json({
-      message: `✓ ${user.name} has been enrolled in "${course.title}"`,
+      message:
+        safeAmount > 0
+          ? `✓ ${user.name} has been enrolled in "${course.title}" (Rs. ${safeAmount})`
+          : `✓ ${user.name} has been enrolled in "${course.title}"`,
     });
   } catch (err: any) {
     return NextResponse.json({ message: err.message }, { status: 500 });
@@ -82,9 +93,10 @@ export async function GET() {
     await dbConnect();
 
     const orders = await Order.find({ paymentMethod: 'manual' })
-      .populate('user',      'name email')
-      .populate('course',    'title')
-      .populate('grantedBy', 'name')
+      .populate('user',       'name email')
+      .populate('course',     'title')
+      .populate('grantedBy',  'name')
+      .populate('refundedBy', 'name')
       .sort({ createdAt: -1 })
       .lean();
 

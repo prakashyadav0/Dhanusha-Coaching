@@ -1,6 +1,6 @@
 import mongoose, { Schema, Document, Model } from 'mongoose';
 
-export type LinkType = 'live_class' | 'exam';
+export type LinkType = 'live_class' | 'exam' | 'syllabus';
 
 export interface ILink extends Document {
   title: string;
@@ -29,7 +29,7 @@ const LinkSchema = new Schema<ILink>(
     },
     type: {
       type: String,
-      enum: ['live_class', 'exam'],
+      enum: ['live_class', 'exam',"syllabus"],
       required: [true, 'Type is required'],
     },
     description: {

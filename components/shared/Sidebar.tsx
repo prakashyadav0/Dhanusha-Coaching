@@ -194,15 +194,24 @@ export default function Sidebar({ onClose }: Props) {
             >
               🎥 Live Classes
             </Link>
+            <Link
+              href="/user/syllabus"
+              onClick={onClose}
+              className={linkCls(pathname.startsWith('/user/syllabus'))}
+            >
+              📄 Syllabus
+            </Link>
+            <Link
+              href="/user/profile"
+              onClick={onClose}
+              className={linkCls(pathname.startsWith('/user/profile'))}
+            >
+              👥 Profile
+            </Link>
 
             {/* COURSES */}
             <div className="pt-1">
-              <button
-                onClick={() => setCoursesOpen(o => !o)}
-                className="w-full flex items-center justify-between px-3 py-2 text-xs font-bold text-gray-400 uppercase"
-              >
-                📚 Courses
-              </button>
+              
 
               {coursesOpen &&
                 (loadingCourses ? (

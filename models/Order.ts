@@ -13,6 +13,8 @@ export interface IOrder extends Document {
   approvedAt?: Date;
   grantedBy?: mongoose.Types.ObjectId;   // admin who manually enrolled the user
   grantNote?: string;                    // e.g. "scholarship", "offline cash", "staff"
+  refundedBy?: mongoose.Types.ObjectId;  // admin who refunded/revoked this order
+  refundedAt?: Date;
   paidAt?: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -40,6 +42,8 @@ const OrderSchema = new Schema<IOrder>(
     approvedAt: { type: Date, default: null },
     grantedBy:  { type: Schema.Types.ObjectId, ref: 'User', default: null },
     grantNote:  { type: String, default: '' },
+    refundedBy: { type: Schema.Types.ObjectId, ref: 'User', default: null },
+    refundedAt: { type: Date, default: null },
     paidAt:     { type: Date, default: null },
   },
   { timestamps: true }

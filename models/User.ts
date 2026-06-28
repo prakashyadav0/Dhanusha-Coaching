@@ -9,6 +9,9 @@ export interface IUser extends Document {
   purchasedCourses: mongoose.Types.ObjectId[];
   avatar?: string;
   isActive: boolean;
+  resetToken?: string | null;
+  resetTokenExpiry?: Date | null;
+  sessionVersion: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -36,7 +39,7 @@ const UserSchema = new Schema<IUser>(
       type: String,
       required: [true, 'Password is required'],
       minlength: 6,
-      select: false, // never returned in queries by default
+      select: false,
     },
     role: {
       type: String,
@@ -56,6 +59,22 @@ const UserSchema = new Schema<IUser>(
     isActive: {
       type: Boolean,
       default: true,
+    },
+    // Stores a SHA-256 hash of the raw token (never the raw token itself)
+    resetToken: {
+      type: String,
+      default: null,
+      select: false,
+    },
+    resetTokenExpiry: {
+      type: Date,
+      default: null,
+      select: false,
+    },
+    // Increment this on password reset to invalidate all existing JWT sessions
+    sessionVersion: {
+      type: Number,
+      default: 0,
     },
   },
   { timestamps: true }

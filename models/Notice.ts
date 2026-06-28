@@ -7,6 +7,7 @@ export interface INotice extends Document {
   targetRole: 'all' | 'user' | 'teacher';
   course?: mongoose.Types.ObjectId | null; // null = platform-wide notice
   isPinned: boolean;
+  scheduledAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -42,6 +43,7 @@ const NoticeSchema = new Schema<INotice>(
       type: Boolean,
       default: false,
     },
+    scheduledAt: { type: Date, default: null },
   },
   { timestamps: true }
 );

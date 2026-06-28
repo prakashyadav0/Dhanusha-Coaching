@@ -5,7 +5,7 @@ interface LinkItem {
   _id: string;
   title: string;
   url: string;
-  type: 'live_class' | 'exam';
+  type: 'live_class' | 'exam' | 'syllabus';
   description: string;
   isActive: boolean;
   startsAt?: string;
@@ -25,17 +25,19 @@ const inputCls =
 const TYPE_META = {
   live_class: { label: 'Live Class', emoji: '🔴', color: 'bg-red-50 text-red-700 border-red-200' },
   exam:       { label: 'Exam',       emoji: '📝', color: 'bg-amber-50 text-amber-700 border-amber-200' },
+  syllabus:   { label: 'Syllabus',   emoji: '📄', color: 'bg-blue-50 text-blue-700 border-blue-200' },
 };
 
 export default function AdminLinksPage() {
   const [links,        setLinks]        = useState<LinkItem[]>([]);
   const [courses,      setCourses]      = useState<Course[]>([]);
   const [loading,      setLoading]      = useState(true);
-  const [typeTab,      setTypeTab]      = useState<'all' | 'live_class' | 'exam'>('all');
-  const [scopeFilter,  setScopeFilter]  = useState<'all' | 'platform' | string>('all'); // 'all' | 'platform' | courseId
+  const [typeTab,      setTypeTab]      = useState<'all' | 'live_class' | 'exam' | 'syllabus'>('all');
+  const [scopeFilter,  setScopeFilter]  = useState<'all' | 'platform' | string>('all');
   const [showModal,    setShowModal]    = useState(false);
   const [saving,       setSaving]       = useState(false);
   const [msg,          setMsg]          = useState<{ text: string; ok: boolean } | null>(null);
+  const [editingId,    setEditingId]    = useState<string | null>(null); // track edit
 
   const [form, setForm] = useState({
     title: '', url: '', type: 'live_class', description: '', startsAt: '', courseId: '',
@@ -60,28 +62,64 @@ export default function AdminLinksPage() {
   useEffect(() => { fetchCourses(); }, []);
   useEffect(() => { fetchLinks(); }, [typeTab]);
 
-  // ── Create ─────────────────────────────────────────────────────────────────
+  // ── Reset form & modal state ──────────────────────────────────────────
+  function resetForm() {
+    setForm({ title: '', url: '', type: 'live_class', description: '', startsAt: '', courseId: '' });
+    setEditingId(null);
+    setShowModal(false);
+  }
+
+  // ── Open modal for editing ─────────────────────────────────────────────
+  function openEditModal(link: LinkItem) {
+    setEditingId(link._id);
+    setForm({
+      title:       link.title,
+      url:         link.url,
+      type:        link.type,
+      description: link.description || '',
+      startsAt:    link.startsAt ? new Date(link.startsAt).toISOString().slice(0, 16) : '',
+      courseId:    link.course?._id || '',
+    });
+    setShowModal(true);
+  }
+
+  // ── Create or Update ────────────────────────────────────────────────────
   async function submitLink(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
-    const res = await fetch('/api/links', {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({
-        title:       form.title,
-        url:         form.url,
-        type:        form.type,
-        description: form.description,
-        startsAt:    form.startsAt || undefined,
-        courseId:    form.courseId || undefined, // omit if platform-wide
-      }),
-    });
+
+    const payload = {
+      title:       form.title,
+      url:         form.url,
+      type:        form.type,
+      description: form.description,
+      startsAt:    form.startsAt || undefined,
+      courseId:    form.courseId || undefined,
+    };
+
+    let res;
+    if (editingId) {
+      // Update
+      res = await fetch(`/api/links?id=${editingId}`, {
+        method:  'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify(payload),
+      });
+    } else {
+      // Create
+      res = await fetch('/api/links', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify(payload),
+      });
+    }
+
     const data = await res.json();
     setSaving(false);
+
     if (res.ok) {
-      setMsg({ text: 'Link created!', ok: true });
-      setShowModal(false);
-      setForm({ title: '', url: '', type: 'live_class', description: '', startsAt: '', courseId: '' });
+      setMsg({ text: editingId ? 'Link updated!' : 'Link created!', ok: true });
+      resetForm();
       fetchLinks();
     } else {
       setMsg({ text: data.message, ok: false });
@@ -110,9 +148,9 @@ export default function AdminLinksPage() {
     { key: 'all',        label: 'All Links',    emoji: '🔗' },
     { key: 'live_class', label: 'Live Classes', emoji: '🔴' },
     { key: 'exam',       label: 'Exams',        emoji: '📝' },
+    { key: 'syllabus',   label: 'Syllabus',     emoji: '📄' },
   ] as const;
 
-  // Client-side scope filter (course-specific or platform-wide)
   const visibleLinks = links.filter(link => {
     if (scopeFilter === 'all') return true;
     if (scopeFilter === 'platform') return !link.course;
@@ -123,18 +161,21 @@ export default function AdminLinksPage() {
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5 sm:mb-6">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-800">Live Classes & Exams</h1>
-          <p className="text-gray-500 text-sm mt-0.5">Post external links for live sessions and online exams.</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-800">Live Classes, Exams & Syllabus</h1>
+          <p className="text-gray-500 text-sm mt-0.5">Post external links for sessions, exams, and syllabus.</p>
         </div>
         <button
-          onClick={() => setShowModal(true)}
+          onClick={() => {
+            setEditingId(null);
+            setForm({ title: '', url: '', type: 'live_class', description: '', startsAt: '', courseId: '' });
+            setShowModal(true);
+          }}
           className="shrink-0 bg-indigo-600 text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-indigo-700 transition"
         >
           + Add Link
         </button>
       </div>
 
-      {/* Flash message */}
       {msg && (
         <div className={`mb-4 text-sm px-4 py-3 rounded-xl border ${msg.ok ? 'bg-green-50 border-green-200 text-green-700' : 'bg-red-50 border-red-200 text-red-700'}`}>
           {msg.text}
@@ -213,7 +254,6 @@ export default function AdminLinksPage() {
                       <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full border ${meta.color}`}>
                         {meta.emoji} {meta.label}
                       </span>
-                      {/* Scope badge */}
                       {link.course ? (
                         <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
                           📚 {link.course.title}
@@ -255,6 +295,12 @@ export default function AdminLinksPage() {
                   {/* Actions */}
                   <div className="flex sm:flex-col gap-2 shrink-0">
                     <button
+                      onClick={() => openEditModal(link)}
+                      className="flex-1 sm:flex-none text-xs px-3 py-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition"
+                    >
+                      ✎ Edit
+                    </button>
+                    <button
                       onClick={() => toggleActive(link)}
                       className={`flex-1 sm:flex-none text-xs px-3 py-2 rounded-lg border font-medium transition ${
                         link.isActive
@@ -278,14 +324,16 @@ export default function AdminLinksPage() {
         </div>
       )}
 
-      {/* ── Add Link Modal ────────────────────────────────────────────────── */}
+      {/* ── Add / Edit Link Modal ────────────────────────────────────────── */}
       {showModal && (
         <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 px-0 sm:px-4">
           <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-xl w-full sm:max-w-lg max-h-[92vh] overflow-y-auto">
             <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-gray-100">
-              <h2 className="text-base sm:text-lg font-bold text-gray-800">Add Link</h2>
+              <h2 className="text-base sm:text-lg font-bold text-gray-800">
+                {editingId ? 'Edit Link' : 'Add Link'}
+              </h2>
               <button
-                onClick={() => setShowModal(false)}
+                onClick={resetForm}
                 className="w-9 h-9 flex items-center justify-center rounded-xl text-gray-400 hover:bg-gray-100 transition text-xl"
               >
                 ×
@@ -297,8 +345,8 @@ export default function AdminLinksPage() {
               {/* Type selector */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Type</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {(['live_class', 'exam'] as const).map(t => {
+                <div className="grid grid-cols-3 gap-2">
+                  {(['live_class', 'exam', 'syllabus'] as const).map(t => {
                     const m = TYPE_META[t];
                     return (
                       <button
@@ -318,7 +366,7 @@ export default function AdminLinksPage() {
                 </div>
               </div>
 
-              {/* Scope selector — course or platform-wide */}
+              {/* Scope selector */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Post to</label>
                 <select
@@ -344,7 +392,7 @@ export default function AdminLinksPage() {
                   value={form.title}
                   onChange={e => setForm({ ...form, title: e.target.value })}
                   className={inputCls}
-                  placeholder={form.type === 'live_class' ? 'e.g. Physics Live Class – Chapter 5' : 'e.g. Mid-term Exam 2025'}
+                  placeholder={form.type === 'live_class' ? 'e.g. Physics Live Class – Chapter 5' : form.type === 'exam' ? 'e.g. Mid-term Exam 2025' : 'e.g. Course Syllabus 2026'}
                 />
               </Field>
 
@@ -380,7 +428,7 @@ export default function AdminLinksPage() {
               <div className="flex gap-3 pt-2">
                 <button
                   type="button"
-                  onClick={() => setShowModal(false)}
+                  onClick={resetForm}
                   className="flex-1 px-4 py-3 text-sm text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200 transition"
                 >
                   Cancel
@@ -390,7 +438,7 @@ export default function AdminLinksPage() {
                   disabled={saving}
                   className="flex-1 px-4 py-3 text-sm text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 disabled:opacity-60 transition font-semibold"
                 >
-                  {saving ? 'Adding...' : 'Add Link'}
+                  {saving ? (editingId ? 'Updating...' : 'Adding...') : (editingId ? 'Update Link' : 'Add Link')}
                 </button>
               </div>
             </form>
