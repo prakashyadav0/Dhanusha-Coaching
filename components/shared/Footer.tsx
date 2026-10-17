@@ -136,6 +136,21 @@ export default function Footer() {
             </Link>
           </div>
         </div>
+
+        {/* Developer Credit - Centered */}
+        <div className="mt-6 text-center">
+          <p className="text-gray-500 text-sm">
+            Crafted with <span className="text-red-500">♥</span> by{" "}
+            <Link
+              href="https://www.prakash403.com.np"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-gray-300 hover:text-red-500 font-medium underline-offset-4 hover:underline transition-colors"
+            >
+              Prakash Yadav
+            </Link>
+          </p>
+        </div>
       </div>
     </footer>
   );
